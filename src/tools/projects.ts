@@ -1,14 +1,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { api } from '../api-client.js';
+import type { ApiClient } from '../api-client.js';
 
-export function registerProjectTools(server: McpServer) {
+export function registerProjectTools(server: McpServer, client: ApiClient) {
   server.tool(
     'list_projects',
     'Lista todos los proyectos de Squad. Devuelve id, key, nombre, descripción, tipo, statuses e issue types de cada proyecto.',
     {},
     async () => {
-      const projects = await api('/api/projects');
+      const projects = await client.api('/api/projects');
       return { content: [{ type: 'text', text: JSON.stringify(projects, null, 2) }] };
     },
   );
@@ -18,7 +18,7 @@ export function registerProjectTools(server: McpServer) {
     'Obtiene el detalle de un proyecto por su ID. Incluye statuses configurados, tipos de issue, miembros y metadata.',
     { projectId: z.string().describe('ID del proyecto') },
     async ({ projectId }) => {
-      const project = await api(`/api/projects/${projectId}`);
+      const project = await client.api(`/api/projects/${projectId}`);
       return { content: [{ type: 'text', text: JSON.stringify(project, null, 2) }] };
     },
   );
@@ -34,7 +34,7 @@ export function registerProjectTools(server: McpServer) {
       repoPath: z.string().optional().describe('Ruta al repositorio de código'),
     },
     async ({ ...body }) => {
-      const project = await api('/api/projects', {
+      const project = await client.api('/api/projects', {
         method: 'POST',
         body: JSON.stringify(body),
       });
@@ -53,7 +53,7 @@ export function registerProjectTools(server: McpServer) {
       autoExecute: z.boolean().optional().describe('Auto-ejecutar tareas en pipeline Squad AI'),
     },
     async ({ projectId, ...body }) => {
-      const project = await api(`/api/projects/${projectId}`, {
+      const project = await client.api(`/api/projects/${projectId}`, {
         method: 'PUT',
         body: JSON.stringify(body),
       });
@@ -66,7 +66,7 @@ export function registerProjectTools(server: McpServer) {
     'Elimina un proyecto permanentemente. Acción irreversible.',
     { projectId: z.string().describe('ID del proyecto a eliminar') },
     async ({ projectId }) => {
-      await api(`/api/projects/${projectId}`, { method: 'DELETE' });
+      await client.api(`/api/projects/${projectId}`, { method: 'DELETE' });
       return { content: [{ type: 'text', text: `Proyecto ${projectId} eliminado.` }] };
     },
   );
@@ -77,7 +77,7 @@ export function registerProjectTools(server: McpServer) {
     'Lista los miembros de un proyecto con sus roles.',
     { projectId: z.string().describe('ID del proyecto') },
     async ({ projectId }) => {
-      const members = await api(`/api/projects/${projectId}/members`);
+      const members = await client.api(`/api/projects/${projectId}/members`);
       return { content: [{ type: 'text', text: JSON.stringify(members, null, 2) }] };
     },
   );
@@ -91,7 +91,7 @@ export function registerProjectTools(server: McpServer) {
       role: z.enum(['admin', 'member', 'viewer']).optional().describe('Rol en el proyecto (default: member)'),
     },
     async ({ projectId, userId, role }) => {
-      const member = await api(`/api/projects/${projectId}/members`, {
+      const member = await client.api(`/api/projects/${projectId}/members`, {
         method: 'POST',
         body: JSON.stringify({ userId, role: role || 'member' }),
       });
@@ -108,7 +108,7 @@ export function registerProjectTools(server: McpServer) {
       role: z.enum(['admin', 'member', 'viewer']).describe('Nuevo rol'),
     },
     async ({ projectId, userId, role }) => {
-      const member = await api(`/api/projects/${projectId}/members/${userId}`, {
+      const member = await client.api(`/api/projects/${projectId}/members/${userId}`, {
         method: 'PUT',
         body: JSON.stringify({ role }),
       });
@@ -124,7 +124,7 @@ export function registerProjectTools(server: McpServer) {
       userId: z.string().describe('ID del usuario a remover'),
     },
     async ({ projectId, userId }) => {
-      await api(`/api/projects/${projectId}/members/${userId}`, { method: 'DELETE' });
+      await client.api(`/api/projects/${projectId}/members/${userId}`, { method: 'DELETE' });
       return { content: [{ type: 'text', text: `Miembro ${userId} removido del proyecto.` }] };
     },
   );
@@ -141,7 +141,7 @@ export function registerProjectTools(server: McpServer) {
       agentInstructions: z.string().optional().describe('Instrucciones para agentes AI en esta fase'),
     },
     async ({ projectId, ...body }) => {
-      const status = await api(`/api/projects/${projectId}/statuses`, {
+      const status = await client.api(`/api/projects/${projectId}/statuses`, {
         method: 'POST',
         body: JSON.stringify(body),
       });
@@ -160,7 +160,7 @@ export function registerProjectTools(server: McpServer) {
       agentInstructions: z.string().optional().describe('Nuevas instrucciones para agentes'),
     },
     async ({ projectId, statusId, ...body }) => {
-      const status = await api(`/api/projects/${projectId}/statuses/${statusId}`, {
+      const status = await client.api(`/api/projects/${projectId}/statuses/${statusId}`, {
         method: 'PUT',
         body: JSON.stringify(body),
       });
@@ -176,7 +176,7 @@ export function registerProjectTools(server: McpServer) {
       statusId: z.string().describe('ID del status a eliminar'),
     },
     async ({ projectId, statusId }) => {
-      await api(`/api/projects/${projectId}/statuses/${statusId}`, { method: 'DELETE' });
+      await client.api(`/api/projects/${projectId}/statuses/${statusId}`, { method: 'DELETE' });
       return { content: [{ type: 'text', text: `Status ${statusId} eliminado.` }] };
     },
   );
@@ -192,7 +192,7 @@ export function registerProjectTools(server: McpServer) {
       color: z.string().optional().describe('Color hex'),
     },
     async ({ projectId, ...body }) => {
-      const issueType = await api(`/api/projects/${projectId}/issue-types`, {
+      const issueType = await client.api(`/api/projects/${projectId}/issue-types`, {
         method: 'POST',
         body: JSON.stringify(body),
       });
@@ -211,7 +211,7 @@ export function registerProjectTools(server: McpServer) {
       color: z.string().optional().describe('Nuevo color'),
     },
     async ({ projectId, typeId, ...body }) => {
-      const issueType = await api(`/api/projects/${projectId}/issue-types/${typeId}`, {
+      const issueType = await client.api(`/api/projects/${projectId}/issue-types/${typeId}`, {
         method: 'PUT',
         body: JSON.stringify(body),
       });
@@ -227,7 +227,7 @@ export function registerProjectTools(server: McpServer) {
       typeId: z.string().describe('ID del tipo a eliminar'),
     },
     async ({ projectId, typeId }) => {
-      await api(`/api/projects/${projectId}/issue-types/${typeId}`, { method: 'DELETE' });
+      await client.api(`/api/projects/${projectId}/issue-types/${typeId}`, { method: 'DELETE' });
       return { content: [{ type: 'text', text: `Tipo de issue ${typeId} eliminado.` }] };
     },
   );

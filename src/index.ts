@@ -5,7 +5,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { ensureAuth } from './api-client.js';
+import { ApiClient, createApiClientFromEnv } from './api-client.js';
 import { registerProjectTools } from './tools/projects.js';
 import { registerIssueTools } from './tools/issues.js';
 import { registerSprintTools } from './tools/sprints.js';
@@ -24,36 +24,36 @@ import { registerReportTools } from './tools/reports.js';
 import { registerInvitationTools } from './tools/invitations.js';
 import { registerBillingTools } from './tools/billing.js';
 
-function createSquadServer(): McpServer {
+function createSquadServer(client: ApiClient): McpServer {
   const server = new McpServer({
     name: 'squad',
     version: '2.0.0',
   });
 
   // Core
-  registerProjectTools(server);
-  registerIssueTools(server);
-  registerSprintTools(server);
-  registerUserTools(server);
-  registerCommentTools(server);
+  registerProjectTools(server, client);
+  registerIssueTools(server, client);
+  registerSprintTools(server, client);
+  registerUserTools(server, client);
+  registerCommentTools(server, client);
 
   // Squad AI
-  registerWorkerTools(server);
-  registerSquadTools(server);
+  registerWorkerTools(server, client);
+  registerSquadTools(server, client);
 
   // Collaboration
-  registerTeamTools(server);
-  registerVotingTools(server);
-  registerIssueLinkTools(server);
-  registerActivityTools(server);
-  registerNotificationTools(server);
-  registerInvitationTools(server);
+  registerTeamTools(server, client);
+  registerVotingTools(server, client);
+  registerIssueLinkTools(server, client);
+  registerActivityTools(server, client);
+  registerNotificationTools(server, client);
+  registerInvitationTools(server, client);
 
   // Utilities
-  registerSearchTools(server);
-  registerLabelTools(server);
-  registerReportTools(server);
-  registerBillingTools(server);
+  registerSearchTools(server, client);
+  registerLabelTools(server, client);
+  registerReportTools(server, client);
+  registerBillingTools(server, client);
 
   return server;
 }
@@ -61,7 +61,8 @@ function createSquadServer(): McpServer {
 // ── Stdio mode (local, default) ─────────────────────────────────────────────
 
 async function startStdio() {
-  const server = createSquadServer();
+  const client = createApiClientFromEnv();
+  const server = createSquadServer(client);
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
@@ -78,7 +79,7 @@ async function startHttp() {
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-session-id');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-session-id, x-squad-email, x-squad-password, x-squad-api-url');
     res.setHeader('Access-Control-Expose-Headers', 'mcp-session-id');
 
     if (req.method === 'OPTIONS') {
@@ -120,11 +121,39 @@ async function startHttp() {
 
     // New session - only on POST (initialization)
     if (req.method === 'POST') {
+      // Extract per-user credentials from headers
+      const userEmail = req.headers['x-squad-email'] as string | undefined;
+      const userPassword = req.headers['x-squad-password'] as string | undefined;
+      const userApiUrl = req.headers['x-squad-api-url'] as string | undefined;
+
+      if (!userEmail || !userPassword) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          error: 'Authentication required. Send x-squad-email and x-squad-password headers.',
+        }));
+        return;
+      }
+
+      const client = new ApiClient({
+        apiUrl: userApiUrl || process.env.SQUAD_API_URL || 'http://localhost:8000',
+        email: userEmail,
+        password: userPassword,
+      });
+
+      // Verify credentials before creating session
+      try {
+        await client.ensureAuth();
+      } catch {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid credentials' }));
+        return;
+      }
+
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
       });
 
-      const server = createSquadServer();
+      const server = createSquadServer(client);
 
       transport.onclose = () => {
         const sid = transport.sessionId;

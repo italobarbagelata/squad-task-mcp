@@ -1,14 +1,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { api } from '../api-client.js';
+import type { ApiClient } from '../api-client.js';
 
-export function registerLabelTools(server: McpServer) {
+export function registerLabelTools(server: McpServer, client: ApiClient) {
   server.tool(
     'list_labels',
     'Lista todas las etiquetas disponibles.',
     {},
     async () => {
-      const labels = await api('/api/labels');
+      const labels = await client.api('/api/labels');
       return { content: [{ type: 'text', text: JSON.stringify(labels, null, 2) }] };
     },
   );
@@ -21,7 +21,7 @@ export function registerLabelTools(server: McpServer) {
       color: z.string().optional().describe('Color hex (ej: "#EF4444")'),
     },
     async ({ name, color }) => {
-      const label = await api('/api/labels', {
+      const label = await client.api('/api/labels', {
         method: 'POST',
         body: JSON.stringify({ name, color }),
       });
@@ -34,7 +34,7 @@ export function registerLabelTools(server: McpServer) {
     'Elimina una etiqueta.',
     { labelId: z.string().describe('ID de la etiqueta a eliminar') },
     async ({ labelId }) => {
-      await api(`/api/labels/${labelId}`, { method: 'DELETE' });
+      await client.api(`/api/labels/${labelId}`, { method: 'DELETE' });
       return { content: [{ type: 'text', text: `Etiqueta ${labelId} eliminada.` }] };
     },
   );

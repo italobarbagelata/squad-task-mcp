@@ -19,7 +19,9 @@
  */
 
 import { spawn } from 'child_process';
-import { api, ensureAuth } from './api-client.js';
+import { createApiClientFromEnv } from './api-client.js';
+
+const client = createApiClientFromEnv();
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -189,8 +191,8 @@ const processing = new Set<string>();
 
 async function getExecutableTasks(): Promise<TaskItem[]> {
   const projects = projectFilter
-    ? [await api<Project>(`/api/projects/${projectFilter}`)]
-    : await api<Project[]>('/api/projects');
+    ? [await client.api<Project>(`/api/projects/${projectFilter}`)]
+    : await client.api<Project[]>('/api/projects');
 
   const tasks: TaskItem[] = [];
 
@@ -198,7 +200,7 @@ async function getExecutableTasks(): Promise<TaskItem[]> {
     if (proj.projectType === 'squad_ai') {
       // Squad AI: check all pipeline phases, only issues with execution_status=execute
       for (const phase of SQUAD_PHASES) {
-        const issues = await api<Issue[]>(`/api/projects/${proj.id}/issues?status=${phase}&execution_status=execute`);
+        const issues = await client.api<Issue[]>(`/api/projects/${proj.id}/issues?status=${phase}&execution_status=execute`);
         for (const issue of issues) {
           if (!processing.has(issue.id)) {
             tasks.push({ issue, project: proj, phase });
@@ -207,7 +209,7 @@ async function getExecutableTasks(): Promise<TaskItem[]> {
       }
     } else {
       // Standard: check "ejecutar" status
-      const issues = await api<Issue[]>(`/api/projects/${proj.id}/issues?status=ejecutar`);
+      const issues = await client.api<Issue[]>(`/api/projects/${proj.id}/issues?status=ejecutar`);
       for (const issue of issues) {
         if (!processing.has(issue.id)) {
           tasks.push({ issue, project: proj });
@@ -288,7 +290,7 @@ async function executeTask(task: TaskItem): Promise<void> {
 
   // Mark as executing
   if (isSquad) {
-    await api(`/api/projects/${project.id}/issues/${issue.id}/execution-status`, {
+    await client.api(`/api/projects/${project.id}/issues/${issue.id}/execution-status`, {
       method: 'PATCH',
       body: JSON.stringify({ executionStatus: 'executing' }),
     });
@@ -299,7 +301,7 @@ async function executeTask(task: TaskItem): Promise<void> {
     ? `🤖 **${agentLabel}** ha tomado esta tarea en la fase "${phase}" y está procesándola.`
     : '🤖 Claude Code Worker ha detectado esta tarea y está iniciando la ejecución automática.';
 
-  await api(`/api/issues/${issue.id}/comments`, {
+  await client.api(`/api/issues/${issue.id}/comments`, {
     method: 'POST',
     body: JSON.stringify({ content: startMsg }),
   });
@@ -362,16 +364,16 @@ async function executeTask(task: TaskItem): Promise<void> {
 
     // If Claude didn't already handle the failure, log the error
     try {
-      const currentIssue = await api<Issue>(`/api/projects/${project.id}/issues/${issue.id}`);
+      const currentIssue = await client.api<Issue>(`/api/projects/${project.id}/issues/${issue.id}`);
 
       if (isSquad) {
         // For Squad AI, mark as failed and comment the error
         if (currentIssue.status === phase) {
-          await api(`/api/projects/${project.id}/issues/${issue.id}/execution-status`, {
+          await client.api(`/api/projects/${project.id}/issues/${issue.id}/execution-status`, {
             method: 'PATCH',
             body: JSON.stringify({ executionStatus: 'failed' }),
           });
-          await api(`/api/issues/${issue.id}/comments`, {
+          await client.api(`/api/issues/${issue.id}/comments`, {
             method: 'POST',
             body: JSON.stringify({
               content: `❌ **${agentLabel} - Error en ejecución**\n\n${errorMsg}\n\n_Marcado como "fallido". Cambia a "ejecutar" para reintentar._`,
@@ -381,11 +383,11 @@ async function executeTask(task: TaskItem): Promise<void> {
       } else {
         // Standard: move back to "todo"
         if (currentIssue.status === 'ejecutar') {
-          await api(`/api/projects/${project.id}/issues/${issue.id}/status`, {
+          await client.api(`/api/projects/${project.id}/issues/${issue.id}/status`, {
             method: 'PATCH',
             body: JSON.stringify({ status: 'todo' }),
           });
-          await api(`/api/issues/${issue.id}/comments`, {
+          await client.api(`/api/issues/${issue.id}/comments`, {
             method: 'POST',
             body: JSON.stringify({
               content: `❌ **Error en ejecución automática**\n\n${errorMsg}\n\n_Devuelta a "To Do" para revisión._`,
@@ -443,7 +445,7 @@ async function main() {
   console.log(`   Squad AI: activado (fases: ${SQUAD_PHASES.join(', ')})`);
   console.log('');
 
-  await ensureAuth();
+  await client.ensureAuth();
   console.log('✅ Autenticado correctamente');
   console.log('');
 

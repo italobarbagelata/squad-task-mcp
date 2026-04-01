@@ -1,14 +1,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { api } from '../api-client.js';
+import type { ApiClient } from '../api-client.js';
 
-export function registerVotingTools(server: McpServer) {
+export function registerVotingTools(server: McpServer, client: ApiClient) {
   server.tool(
     'create_voting_session',
     'Crea una nueva sesión de Planning Poker para estimar un issue.',
     { issueId: z.string().describe('ID del issue a estimar') },
     async ({ issueId }) => {
-      const session = await api(`/api/issues/${issueId}/voting`, {
+      const session = await client.api(`/api/issues/${issueId}/voting`, {
         method: 'POST',
         body: JSON.stringify({}),
       });
@@ -21,7 +21,7 @@ export function registerVotingTools(server: McpServer) {
     'Lista las sesiones de votación de un issue.',
     { issueId: z.string().describe('ID del issue') },
     async ({ issueId }) => {
-      const sessions = await api(`/api/issues/${issueId}/voting`);
+      const sessions = await client.api(`/api/issues/${issueId}/voting`);
       return { content: [{ type: 'text', text: JSON.stringify(sessions, null, 2) }] };
     },
   );
@@ -31,7 +31,7 @@ export function registerVotingTools(server: McpServer) {
     'Obtiene la sesión de votación activa de un issue (si existe).',
     { issueId: z.string().describe('ID del issue') },
     async ({ issueId }) => {
-      const session = await api(`/api/issues/${issueId}/voting/active`);
+      const session = await client.api(`/api/issues/${issueId}/voting/active`);
       return { content: [{ type: 'text', text: JSON.stringify(session, null, 2) }] };
     },
   );
@@ -44,7 +44,7 @@ export function registerVotingTools(server: McpServer) {
       points: z.number().describe('Story points a votar'),
     },
     async ({ sessionId, points }) => {
-      const vote = await api(`/api/voting/${sessionId}/vote`, {
+      const vote = await client.api(`/api/voting/${sessionId}/vote`, {
         method: 'POST',
         body: JSON.stringify({ points }),
       });
@@ -57,7 +57,7 @@ export function registerVotingTools(server: McpServer) {
     'Revela todos los votos de una sesión de Planning Poker.',
     { sessionId: z.string().describe('ID de la sesión de votación') },
     async ({ sessionId }) => {
-      const session = await api(`/api/voting/${sessionId}/reveal`, { method: 'PATCH' });
+      const session = await client.api(`/api/voting/${sessionId}/reveal`, { method: 'PATCH' });
       return { content: [{ type: 'text', text: JSON.stringify(session, null, 2) }] };
     },
   );
@@ -70,7 +70,7 @@ export function registerVotingTools(server: McpServer) {
       finalPoints: z.number().describe('Story points definitivos'),
     },
     async ({ sessionId, finalPoints }) => {
-      const session = await api(`/api/voting/${sessionId}/finalize`, {
+      const session = await client.api(`/api/voting/${sessionId}/finalize`, {
         method: 'PATCH',
         body: JSON.stringify({ finalPoints }),
       });
@@ -83,7 +83,7 @@ export function registerVotingTools(server: McpServer) {
     'Cancela una sesión de votación activa.',
     { sessionId: z.string().describe('ID de la sesión de votación') },
     async ({ sessionId }) => {
-      await api(`/api/voting/${sessionId}/cancel`, { method: 'PATCH' });
+      await client.api(`/api/voting/${sessionId}/cancel`, { method: 'PATCH' });
       return { content: [{ type: 'text', text: 'Sesión de votación cancelada.' }] };
     },
   );

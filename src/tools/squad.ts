@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { api } from '../api-client.js';
+import type { ApiClient } from '../api-client.js';
 import type { Issue, Project, Comment, PhaseExecution, User } from '../types.js';
 
 /** Helper: get ordered phases from a project's statuses */
@@ -29,7 +29,7 @@ function getActionablePhaseIds(project: Project): string[] {
     .map((s) => s.id);
 }
 
-export function registerSquadTools(server: McpServer) {
+export function registerSquadTools(server: McpServer, client: ApiClient) {
   // ── poll_squad_tasks ────────────────────────────────────────
   server.tool(
     'poll_squad_tasks',
@@ -43,13 +43,13 @@ export function registerSquadTools(server: McpServer) {
       // Get current user ID if filtering by assignment
       let myUserId: string | undefined;
       if (assignedToMe) {
-        const me = await api<User>('/api/auth/me');
+        const me = await client.api<User>('/api/auth/me');
         myUserId = me.id;
       }
 
       const allProjects = projectId
-        ? [await api<Project>(`/api/projects/${projectId}`)]
-        : await api<Project[]>('/api/projects');
+        ? [await client.api<Project>(`/api/projects/${projectId}`)]
+        : await client.api<Project[]>('/api/projects');
 
       const squadProjects = allProjects.filter((p) => p.projectType === 'squad_ai');
 
@@ -65,7 +65,7 @@ export function registerSquadTools(server: McpServer) {
         const phases = phase ? [phase] : getActionablePhaseIds(proj);
         for (const ph of phases) {
           const assigneeParam = myUserId ? `&assignee=${myUserId}` : '';
-          const issues = await api<Issue[]>(
+          const issues = await client.api<Issue[]>(
             `/api/projects/${proj.id}/issues?status=${ph}&execution_status=execute${assigneeParam}`,
           );
           for (const issue of issues) {
@@ -116,23 +116,23 @@ export function registerSquadTools(server: McpServer) {
     },
     async ({ projectId, issueId, agentUser }) => {
       try {
-        const issue = await api<Issue>(`/api/projects/${projectId}/squad/issues/${issueId}/pick`, {
+        const issue = await client.api<Issue>(`/api/projects/${projectId}/squad/issues/${issueId}/pick`, {
           method: 'POST',
           body: JSON.stringify({ agentUser: agentUser || 'claude-code' }),
         });
 
         // Get project for phase info
-        const project = await api<Project>(`/api/projects/${projectId}`);
+        const project = await client.api<Project>(`/api/projects/${projectId}`);
 
         // Get comments for context
-        const comments = await api<Comment[]>(`/api/issues/${issueId}/comments`);
+        const comments = await client.api<Comment[]>(`/api/issues/${issueId}/comments`);
         const prevComments = comments
           .filter((c) => !c.content.includes('Agente ha tomado'))
           .map((c) => `- ${c.content}`)
           .join('\n');
 
         // Get phase execution history
-        const phases = await api<PhaseExecution[]>(
+        const phases = await client.api<PhaseExecution[]>(
           `/api/projects/${projectId}/squad/issues/${issueId}/phases`,
         );
         const phaseHistory = phases
@@ -204,9 +204,9 @@ export function registerSquadTools(server: McpServer) {
     },
     async ({ projectId, issueId, summary, phaseOutput }) => {
       // Get project for labels
-      const project = await api<Project>(`/api/projects/${projectId}`);
+      const project = await client.api<Project>(`/api/projects/${projectId}`);
 
-      const result = await api<{
+      const result = await client.api<{
         issueKey: string;
         previousPhase: string;
         newStatus: string;
@@ -239,12 +239,12 @@ export function registerSquadTools(server: McpServer) {
       issueId: z.string().describe('ID del issue a aprobar'),
     },
     async ({ projectId, issueId }) => {
-      const issue = await api<Issue>(`/api/projects/${projectId}/squad/issues/${issueId}/approve`, {
+      const issue = await client.api<Issue>(`/api/projects/${projectId}/squad/issues/${issueId}/approve`, {
         method: 'POST',
         body: JSON.stringify({}),
       });
 
-      const project = await api<Project>(`/api/projects/${projectId}`);
+      const project = await client.api<Project>(`/api/projects/${projectId}`);
 
       return {
         content: [{
@@ -266,12 +266,12 @@ export function registerSquadTools(server: McpServer) {
       reason: z.string().describe('Explicación de por qué se rechaza y qué debe corregirse'),
     },
     async ({ projectId, issueId, targetPhase, reason }) => {
-      const issue = await api<Issue>(`/api/projects/${projectId}/squad/issues/${issueId}/reject`, {
+      const issue = await client.api<Issue>(`/api/projects/${projectId}/squad/issues/${issueId}/reject`, {
         method: 'POST',
         body: JSON.stringify({ targetPhase, reason }),
       });
 
-      const project = await api<Project>(`/api/projects/${projectId}`);
+      const project = await client.api<Project>(`/api/projects/${projectId}`);
 
       return {
         content: [{
@@ -290,8 +290,8 @@ export function registerSquadTools(server: McpServer) {
       projectId: z.string().describe('ID del proyecto Squad AI'),
     },
     async ({ projectId }) => {
-      const project = await api<Project>(`/api/projects/${projectId}`);
-      const data = await api<{
+      const project = await client.api<Project>(`/api/projects/${projectId}`);
+      const data = await client.api<{
         project: { id: string; key: string; name: string };
         phases: Record<string, { count: number; issues: { id: string; key: string; title: string; executionStatus: string; priority: string; storyPoints?: number }[] }>;
         summary: { total: number; byExecutionStatus: Record<string, number> };
@@ -354,12 +354,10 @@ export function registerSquadTools(server: McpServer) {
       issueId: z.string().describe('ID del issue a inspeccionar'),
     },
     async ({ projectId, issueId }) => {
-      const [issue, project, comments, phases] = await Promise.all([
-        api<Issue>(`/api/projects/${projectId}/issues/${issueId}`),
-        api<Project>(`/api/projects/${projectId}`),
-        api<Comment[]>(`/api/issues/${issueId}/comments`),
-        api<PhaseExecution[]>(`/api/projects/${projectId}/squad/issues/${issueId}/phases`),
-      ]);
+      const issue = await client.api<Issue>(`/api/projects/${projectId}/issues/${issueId}`);
+      const project = await client.api<Project>(`/api/projects/${projectId}`);
+      const comments = await client.api<Comment[]>(`/api/issues/${issueId}/comments`);
+      const phases = await client.api<PhaseExecution[]>(`/api/projects/${projectId}/squad/issues/${issueId}/phases`);
 
       const currentPhase = issue.status;
       const nextPhase = getNextPhase(project, currentPhase);
@@ -416,12 +414,12 @@ export function registerSquadTools(server: McpServer) {
       reason: z.string().describe('Explicación de por qué no se pudo completar la fase'),
     },
     async ({ projectId, issueId, reason }) => {
-      const issue = await api<Issue>(`/api/projects/${projectId}/squad/issues/${issueId}/fail`, {
+      const issue = await client.api<Issue>(`/api/projects/${projectId}/squad/issues/${issueId}/fail`, {
         method: 'POST',
         body: JSON.stringify({ reason }),
       });
 
-      const project = await api<Project>(`/api/projects/${projectId}`);
+      const project = await client.api<Project>(`/api/projects/${projectId}`);
 
       return {
         content: [{

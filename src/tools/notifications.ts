@@ -1,14 +1,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { api } from '../api-client.js';
+import type { ApiClient } from '../api-client.js';
 
-export function registerNotificationTools(server: McpServer) {
+export function registerNotificationTools(server: McpServer, client: ApiClient) {
   server.tool(
     'list_notifications',
     'Lista las notificaciones del usuario autenticado.',
     {},
     async () => {
-      const notifications = await api('/api/notifications');
+      const notifications = await client.api('/api/notifications');
       return { content: [{ type: 'text', text: JSON.stringify(notifications, null, 2) }] };
     },
   );
@@ -18,7 +18,7 @@ export function registerNotificationTools(server: McpServer) {
     'Obtiene el número de notificaciones no leídas.',
     {},
     async () => {
-      const count = await api('/api/notifications/unread-count');
+      const count = await client.api('/api/notifications/unread-count');
       return { content: [{ type: 'text', text: JSON.stringify(count, null, 2) }] };
     },
   );
@@ -28,7 +28,7 @@ export function registerNotificationTools(server: McpServer) {
     'Marca una notificación como leída.',
     { notificationId: z.string().describe('ID de la notificación') },
     async ({ notificationId }) => {
-      await api(`/api/notifications/${notificationId}/read`, { method: 'PUT' });
+      await client.api(`/api/notifications/${notificationId}/read`, { method: 'PUT' });
       return { content: [{ type: 'text', text: 'Notificación marcada como leída.' }] };
     },
   );
@@ -38,7 +38,7 @@ export function registerNotificationTools(server: McpServer) {
     'Marca todas las notificaciones como leídas.',
     {},
     async () => {
-      await api('/api/notifications/read-all', { method: 'PUT' });
+      await client.api('/api/notifications/read-all', { method: 'PUT' });
       return { content: [{ type: 'text', text: 'Todas las notificaciones marcadas como leídas.' }] };
     },
   );

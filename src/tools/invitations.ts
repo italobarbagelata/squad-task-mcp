@@ -1,14 +1,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { api } from '../api-client.js';
+import type { ApiClient } from '../api-client.js';
 
-export function registerInvitationTools(server: McpServer) {
+export function registerInvitationTools(server: McpServer, client: ApiClient) {
   server.tool(
     'list_invitations',
     'Lista las invitaciones pendientes.',
     {},
     async () => {
-      const invitations = await api('/api/invitations');
+      const invitations = await client.api('/api/invitations');
       return { content: [{ type: 'text', text: JSON.stringify(invitations, null, 2) }] };
     },
   );
@@ -23,7 +23,7 @@ export function registerInvitationTools(server: McpServer) {
       role: z.enum(['admin', 'member', 'viewer']).optional().describe('Rol asignado (default: member)'),
     },
     async ({ email, projectId, teamId, role }) => {
-      const invitation = await api('/api/invitations', {
+      const invitation = await client.api('/api/invitations', {
         method: 'POST',
         body: JSON.stringify({ email, projectId, teamId, role: role || 'member' }),
       });
@@ -36,7 +36,7 @@ export function registerInvitationTools(server: McpServer) {
     'Cancela una invitación pendiente.',
     { invitationId: z.string().describe('ID de la invitación a cancelar') },
     async ({ invitationId }) => {
-      await api(`/api/invitations/${invitationId}`, { method: 'DELETE' });
+      await client.api(`/api/invitations/${invitationId}`, { method: 'DELETE' });
       return { content: [{ type: 'text', text: `Invitación ${invitationId} cancelada.` }] };
     },
   );

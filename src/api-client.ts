@@ -1,83 +1,106 @@
-const API_URL = process.env.SQUAD_API_URL || process.env.TASKMANAGER_API_URL || 'http://localhost:8000';
-const EMAIL = process.env.SQUAD_EMAIL || process.env.TASKMANAGER_EMAIL || 'claude@agent.ai';
-const PASSWORD = process.env.SQUAD_PASSWORD || process.env.TASKMANAGER_PASSWORD || 'claude-agent-2024';
-
-let accessToken: string | null = null;
-let refreshToken: string | null = null;
-
-async function login(): Promise<void> {
-  const res = await fetch(`${API_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
-  });
-  if (!res.ok) {
-    throw new Error(`Login failed: ${res.status} ${await res.text()}`);
-  }
-  const data = await res.json();
-  accessToken = data.accessToken ?? data.access_token;
-  refreshToken = data.refreshToken ?? data.refresh_token;
+export interface ApiClientOptions {
+  apiUrl: string;
+  email: string;
+  password: string;
 }
 
-async function refreshAuth(): Promise<void> {
-  if (!refreshToken) {
-    await login();
-    return;
-  }
-  const res = await fetch(`${API_URL}/api/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken, refresh_token: refreshToken }),
-  });
-  if (!res.ok) {
-    await login();
-    return;
-  }
-  const data = await res.json();
-  accessToken = data.accessToken ?? data.access_token;
-  refreshToken = data.refreshToken ?? data.refresh_token;
-}
+/**
+ * Per-session API client. Each user/session gets their own instance
+ * with their own credentials and tokens.
+ */
+export class ApiClient {
+  private apiUrl: string;
+  private email: string;
+  private password: string;
+  private accessToken: string | null = null;
+  private refreshToken_: string | null = null;
 
-export async function api<T = unknown>(
-  path: string,
-  options: RequestInit = {},
-): Promise<T> {
-  if (!accessToken) {
-    await login();
+  constructor(options: ApiClientOptions) {
+    this.apiUrl = options.apiUrl;
+    this.email = options.email;
+    this.password = options.password;
   }
 
-  const doRequest = async (): Promise<Response> => {
-    return fetch(`${API_URL}${path}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-        ...options.headers,
-      },
+  private async login(): Promise<void> {
+    const res = await fetch(`${this.apiUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: this.email, password: this.password }),
     });
-  };
-
-  let res = await doRequest();
-
-  if (res.status === 401) {
-    await refreshAuth();
-    res = await doRequest();
+    if (!res.ok) {
+      throw new Error(`Login failed: ${res.status} ${await res.text()}`);
+    }
+    const data = await res.json();
+    this.accessToken = data.accessToken ?? data.access_token;
+    this.refreshToken_ = data.refreshToken ?? data.refresh_token;
   }
 
-  if (res.status === 204) {
-    return undefined as T;
+  private async refreshAuth(): Promise<void> {
+    if (!this.refreshToken_) {
+      await this.login();
+      return;
+    }
+    const res = await fetch(`${this.apiUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: this.refreshToken_, refresh_token: this.refreshToken_ }),
+    });
+    if (!res.ok) {
+      await this.login();
+      return;
+    }
+    const data = await res.json();
+    this.accessToken = data.accessToken ?? data.access_token;
+    this.refreshToken_ = data.refreshToken ?? data.refresh_token;
   }
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`API error ${res.status}: ${body}`);
+  async api<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
+    if (!this.accessToken) {
+      await this.login();
+    }
+
+    const doRequest = async (): Promise<Response> => {
+      return fetch(`${this.apiUrl}${path}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.accessToken}`,
+          ...options.headers,
+        },
+      });
+    };
+
+    let res = await doRequest();
+
+    if (res.status === 401) {
+      await this.refreshAuth();
+      res = await doRequest();
+    }
+
+    if (res.status === 204) {
+      return undefined as T;
+    }
+
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`API error ${res.status}: ${body}`);
+    }
+
+    return res.json() as Promise<T>;
   }
 
-  return res.json() as Promise<T>;
+  async ensureAuth(): Promise<void> {
+    if (!this.accessToken) {
+      await this.login();
+    }
+  }
 }
 
-export async function ensureAuth(): Promise<void> {
-  if (!accessToken) {
-    await login();
-  }
+/** Create an ApiClient from environment variables (for stdio/local mode) */
+export function createApiClientFromEnv(): ApiClient {
+  return new ApiClient({
+    apiUrl: process.env.SQUAD_API_URL || process.env.TASKMANAGER_API_URL || 'http://localhost:8000',
+    email: process.env.SQUAD_EMAIL || process.env.TASKMANAGER_EMAIL || 'claude@agent.ai',
+    password: process.env.SQUAD_PASSWORD || process.env.TASKMANAGER_PASSWORD || 'claude-agent-2024',
+  });
 }

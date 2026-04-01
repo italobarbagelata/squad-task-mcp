@@ -1,9 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { api } from '../api-client.js';
+import type { ApiClient } from '../api-client.js';
 import type { Issue, Project, Comment } from '../types.js';
 
-export function registerWorkerTools(server: McpServer) {
+export function registerWorkerTools(server: McpServer, client: ApiClient) {
   server.tool(
     'poll_executable_tasks',
     'Busca issues en estado "Ejecutar" listos para ser trabajados por Claude Code. Devuelve las tareas con su contexto completo (título, descripción, proyecto, prioridad). Usa esto para descubrir qué tareas necesitan ser ejecutadas.',
@@ -12,8 +12,8 @@ export function registerWorkerTools(server: McpServer) {
     },
     async ({ projectId }) => {
       const projects = projectId
-        ? [await api<Project>(`/api/projects/${projectId}`)]
-        : await api<Project[]>('/api/projects');
+        ? [await client.api<Project>(`/api/projects/${projectId}`)]
+        : await client.api<Project[]>('/api/projects');
 
       const tasks: {
         issue: Issue;
@@ -21,7 +21,7 @@ export function registerWorkerTools(server: McpServer) {
       }[] = [];
 
       for (const proj of projects) {
-        const issues = await api<Issue[]>(
+        const issues = await client.api<Issue[]>(
           `/api/projects/${proj.id}/issues?status=ejecutar`,
         );
         for (const issue of issues) {
@@ -66,7 +66,7 @@ export function registerWorkerTools(server: McpServer) {
       issueId: z.string().describe('ID del issue a tomar'),
     },
     async ({ projectId, issueId }) => {
-      const issue = await api<Issue>(`/api/projects/${projectId}/issues/${issueId}`);
+      const issue = await client.api<Issue>(`/api/projects/${projectId}/issues/${issueId}`);
 
       if (issue.status !== 'ejecutar') {
         return {
@@ -78,13 +78,13 @@ export function registerWorkerTools(server: McpServer) {
       }
 
       // Add comment indicating Claude is working on it
-      await api(`/api/issues/${issueId}/comments`, {
+      await client.api(`/api/issues/${issueId}/comments`, {
         method: 'POST',
         body: JSON.stringify({ content: '🤖 Claude Code ha tomado esta tarea y está trabajando en ella.' }),
       });
 
       // Get existing comments for context
-      const comments = await api<Comment[]>(
+      const comments = await client.api<Comment[]>(
         `/api/issues/${issueId}/comments`,
       );
 
@@ -124,20 +124,20 @@ export function registerWorkerTools(server: McpServer) {
     },
     async ({ projectId, issueId, summary }) => {
       // Move to "En Revisión"
-      await api(`/api/projects/${projectId}/issues/${issueId}/status`, {
+      await client.api(`/api/projects/${projectId}/issues/${issueId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status: 'in_review' }),
       });
 
       // Add completion comment
-      await api(`/api/issues/${issueId}/comments`, {
+      await client.api(`/api/issues/${issueId}/comments`, {
         method: 'POST',
         body: JSON.stringify({
           content: `✅ **Tarea completada por Claude Code**\n\n${summary}\n\n---\n_Movido a "En Revisión" automáticamente._`,
         }),
       });
 
-      const issue = await api<Issue>(`/api/projects/${projectId}/issues/${issueId}`);
+      const issue = await client.api<Issue>(`/api/projects/${projectId}/issues/${issueId}`);
 
       return {
         content: [{
@@ -158,13 +158,13 @@ export function registerWorkerTools(server: McpServer) {
     },
     async ({ projectId, issueId, reason }) => {
       // Move back to "To Do"
-      await api(`/api/projects/${projectId}/issues/${issueId}/status`, {
+      await client.api(`/api/projects/${projectId}/issues/${issueId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status: 'todo' }),
       });
 
       // Add failure comment
-      await api(`/api/issues/${issueId}/comments`, {
+      await client.api(`/api/issues/${issueId}/comments`, {
         method: 'POST',
         body: JSON.stringify({
           content: `❌ **Tarea no completada por Claude Code**\n\n**Razón:** ${reason}\n\n---\n_Devuelta a "To Do" para revisión manual._`,

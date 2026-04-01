@@ -1,8 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { api } from '../api-client.js';
+import type { ApiClient } from '../api-client.js';
 
-export function registerIssueTools(server: McpServer) {
+export function registerIssueTools(server: McpServer, client: ApiClient) {
   server.tool(
     'list_issues',
     'Lista issues de un proyecto con filtros opcionales. Usa los filtros para buscar por sprint, estado, asignado, tipo, prioridad o execution status.',
@@ -24,7 +24,7 @@ export function registerIssueTools(server: McpServer) {
       if (priority) params.set('priority', priority);
       if (executionStatus) params.set('execution_status', executionStatus);
       const qs = params.toString();
-      const issues = await api(`/api/projects/${projectId}/issues${qs ? `?${qs}` : ''}`);
+      const issues = await client.api(`/api/projects/${projectId}/issues${qs ? `?${qs}` : ''}`);
       return { content: [{ type: 'text', text: JSON.stringify(issues, null, 2) }] };
     },
   );
@@ -37,7 +37,7 @@ export function registerIssueTools(server: McpServer) {
       issueId: z.string().describe('ID del issue'),
     },
     async ({ projectId, issueId }) => {
-      const issue = await api(`/api/projects/${projectId}/issues/${issueId}`);
+      const issue = await client.api(`/api/projects/${projectId}/issues/${issueId}`);
       return { content: [{ type: 'text', text: JSON.stringify(issue, null, 2) }] };
     },
   );
@@ -61,7 +61,7 @@ export function registerIssueTools(server: McpServer) {
       startDate: z.string().optional().describe('Fecha de inicio ISO'),
     },
     async ({ projectId, ...body }) => {
-      const issue = await api(`/api/projects/${projectId}/issues`, {
+      const issue = await client.api(`/api/projects/${projectId}/issues`, {
         method: 'POST',
         body: JSON.stringify(body),
       });
@@ -87,7 +87,7 @@ export function registerIssueTools(server: McpServer) {
       epicId: z.string().optional().describe('Nuevo epic ID'),
     },
     async ({ projectId, issueId, ...body }) => {
-      const issue = await api(`/api/projects/${projectId}/issues/${issueId}`, {
+      const issue = await client.api(`/api/projects/${projectId}/issues/${issueId}`, {
         method: 'PUT',
         body: JSON.stringify(body),
       });
@@ -103,7 +103,7 @@ export function registerIssueTools(server: McpServer) {
       issueId: z.string().describe('ID del issue a eliminar'),
     },
     async ({ projectId, issueId }) => {
-      await api(`/api/projects/${projectId}/issues/${issueId}`, { method: 'DELETE' });
+      await client.api(`/api/projects/${projectId}/issues/${issueId}`, { method: 'DELETE' });
       return { content: [{ type: 'text', text: `Issue ${issueId} eliminado.` }] };
     },
   );
@@ -117,7 +117,7 @@ export function registerIssueTools(server: McpServer) {
       status: z.string().describe('Nuevo status ID'),
     },
     async ({ projectId, issueId, status }) => {
-      const issue = await api(`/api/projects/${projectId}/issues/${issueId}/status`, {
+      const issue = await client.api(`/api/projects/${projectId}/issues/${issueId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       });
@@ -134,7 +134,7 @@ export function registerIssueTools(server: McpServer) {
       assigneeId: z.string().nullable().describe('ID del usuario, o null para desasignar'),
     },
     async ({ projectId, issueId, assigneeId }) => {
-      const issue = await api(`/api/projects/${projectId}/issues/${issueId}/assignee`, {
+      const issue = await client.api(`/api/projects/${projectId}/issues/${issueId}/assignee`, {
         method: 'PATCH',
         body: JSON.stringify({ assigneeId }),
       });
@@ -151,7 +151,7 @@ export function registerIssueTools(server: McpServer) {
       sprintId: z.string().nullable().describe('ID del sprint, o null para backlog'),
     },
     async ({ projectId, issueId, sprintId }) => {
-      const issue = await api(`/api/projects/${projectId}/issues/${issueId}/sprint`, {
+      const issue = await client.api(`/api/projects/${projectId}/issues/${issueId}/sprint`, {
         method: 'PATCH',
         body: JSON.stringify({ sprintId }),
       });
@@ -168,7 +168,7 @@ export function registerIssueTools(server: McpServer) {
       executionStatus: z.enum(['pending', 'execute', 'executing', 'executed', 'failed']).describe('Nuevo execution status'),
     },
     async ({ projectId, issueId, executionStatus }) => {
-      const issue = await api(`/api/projects/${projectId}/issues/${issueId}/execution-status`, {
+      const issue = await client.api(`/api/projects/${projectId}/issues/${issueId}/execution-status`, {
         method: 'PATCH',
         body: JSON.stringify({ executionStatus }),
       });
@@ -184,7 +184,7 @@ export function registerIssueTools(server: McpServer) {
       orderedIssueIds: z.array(z.string()).describe('Array de issue IDs en el orden deseado'),
     },
     async ({ projectId, orderedIssueIds }) => {
-      await api(`/api/projects/${projectId}/issues/reorder`, {
+      await client.api(`/api/projects/${projectId}/issues/reorder`, {
         method: 'PUT',
         body: JSON.stringify({ orderedIssueIds }),
       });

@@ -1,14 +1,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { api } from '../api-client.js';
+import type { ApiClient } from '../api-client.js';
 
-export function registerTeamTools(server: McpServer) {
+export function registerTeamTools(server: McpServer, client: ApiClient) {
   server.tool(
     'list_teams',
     'Lista todos los equipos con sus miembros y líder.',
     {},
     async () => {
-      const teams = await api('/api/teams');
+      const teams = await client.api('/api/teams');
       return { content: [{ type: 'text', text: JSON.stringify(teams, null, 2) }] };
     },
   );
@@ -18,7 +18,7 @@ export function registerTeamTools(server: McpServer) {
     'Obtiene el detalle de un equipo por su ID.',
     { teamId: z.string().describe('ID del equipo') },
     async ({ teamId }) => {
-      const team = await api(`/api/teams/${teamId}`);
+      const team = await client.api(`/api/teams/${teamId}`);
       return { content: [{ type: 'text', text: JSON.stringify(team, null, 2) }] };
     },
   );
@@ -31,7 +31,7 @@ export function registerTeamTools(server: McpServer) {
       description: z.string().optional().describe('Descripción del equipo'),
     },
     async ({ name, description }) => {
-      const team = await api('/api/teams', {
+      const team = await client.api('/api/teams', {
         method: 'POST',
         body: JSON.stringify({ name, description }),
       });
@@ -48,7 +48,7 @@ export function registerTeamTools(server: McpServer) {
       description: z.string().optional().describe('Nueva descripción'),
     },
     async ({ teamId, ...body }) => {
-      const team = await api(`/api/teams/${teamId}`, {
+      const team = await client.api(`/api/teams/${teamId}`, {
         method: 'PUT',
         body: JSON.stringify(body),
       });
@@ -64,7 +64,7 @@ export function registerTeamTools(server: McpServer) {
       userId: z.string().describe('ID del usuario a agregar'),
     },
     async ({ teamId, userId }) => {
-      const result = await api(`/api/teams/${teamId}/members`, {
+      const result = await client.api(`/api/teams/${teamId}/members`, {
         method: 'POST',
         body: JSON.stringify({ userId }),
       });
@@ -80,7 +80,7 @@ export function registerTeamTools(server: McpServer) {
       userId: z.string().describe('ID del usuario a remover'),
     },
     async ({ teamId, userId }) => {
-      await api(`/api/teams/${teamId}/members/${userId}`, { method: 'DELETE' });
+      await client.api(`/api/teams/${teamId}/members/${userId}`, { method: 'DELETE' });
       return { content: [{ type: 'text', text: `Miembro ${userId} removido del equipo.` }] };
     },
   );
