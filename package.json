@@ -1,0 +1,20 @@
+{
+  "name": "squad-mcp-server",
+  "version": "2.0.0",
+  "description": "MCP Server for Squad - allows Claude Code to interact with the project management platform",
+  "type": "module",
+  "main": "build/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "worker": "node build/worker.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.5.0"
+  }
+}
