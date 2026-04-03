@@ -31,13 +31,25 @@ export function registerIssueTools(server: McpServer, client: ApiClient) {
 
   server.tool(
     'get_issue',
-    'Obtiene el detalle completo de un issue: título, descripción, estado, asignado, story points, sprint, labels, techChecks, invest, fechas, etc.',
+    'Obtiene el detalle completo de un issue. Acepta ID interno o key (ej: "ZEY-21").',
     {
       projectId: z.string().describe('ID del proyecto'),
-      issueId: z.string().describe('ID del issue'),
+      issueId: z.string().describe('ID del issue o key (ej: ZEY-21)'),
     },
     async ({ projectId, issueId }) => {
-      const issue = await client.api(`/api/projects/${projectId}/issues/${issueId}`);
+      let resolvedId = issueId;
+
+      // If it looks like a key (e.g. "ZEY-21"), search for the actual ID
+      if (/^[A-Z]+-\d+$/i.test(issueId)) {
+        const results = await client.api<any[]>(`/api/projects/${projectId}/issues`);
+        const match = results.find((i: any) => i.key?.toLowerCase() === issueId.toLowerCase());
+        if (!match) {
+          return { content: [{ type: 'text', text: `Issue con key "${issueId}" no encontrado en este proyecto.` }] };
+        }
+        resolvedId = match.id;
+      }
+
+      const issue = await client.api(`/api/projects/${projectId}/issues/${resolvedId}`);
       return { content: [{ type: 'text', text: JSON.stringify(issue, null, 2) }] };
     },
   );
