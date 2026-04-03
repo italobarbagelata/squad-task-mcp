@@ -23,6 +23,10 @@ import { registerLabelTools } from './tools/labels.js';
 import { registerReportTools } from './tools/reports.js';
 import { registerInvitationTools } from './tools/invitations.js';
 import { registerBillingTools } from './tools/billing.js';
+import { registerVersionTools } from './tools/versions.js';
+import { registerWatcherTools } from './tools/watchers.js';
+import { registerWorkLogTools } from './tools/work-logs.js';
+import { registerBulkTools } from './tools/bulk.js';
 
 function createSquadServer(client: ApiClient): McpServer {
   const server = new McpServer({
@@ -54,6 +58,12 @@ function createSquadServer(client: ApiClient): McpServer {
   registerLabelTools(server, client);
   registerReportTools(server, client);
   registerBillingTools(server, client);
+
+  // New features
+  registerVersionTools(server, client);
+  registerWatcherTools(server, client);
+  registerWorkLogTools(server, client);
+  registerBulkTools(server, client);
 
   return server;
 }
@@ -95,10 +105,67 @@ async function startHttp() {
       return;
     }
 
+    // Landing page
+    if (req.url === '/' || req.url === '/index.html') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>xSquad MCP Server</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #080809; color: #f0f0f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .card { text-align: center; padding: 3rem 2rem; max-width: 420px; }
+    .logo { width: 56px; height: 56px; margin: 0 auto 1.5rem; background: linear-gradient(135deg, #7033ff, #a78bfa); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(112,51,255,0.3); }
+    .logo svg { width: 28px; height: 28px; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .subtitle { color: #888; font-size: 0.875rem; margin-bottom: 2rem; }
+    .status { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(76,183,130,0.1); border: 1px solid rgba(76,183,130,0.25); border-radius: 999px; font-size: 0.8125rem; color: #4CB782; font-weight: 500; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #4CB782; animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .info { margin-top: 2rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .info a, .info span { font-size: 0.75rem; color: #555; }
+    .info a { color: #8c5cff; text-decoration: none; }
+    .info a:hover { text-decoration: underline; }
+    .endpoints { margin-top: 1.5rem; text-align: left; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 1rem 1.25rem; }
+    .endpoints h3 { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
+    .ep { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0; font-size: 0.8125rem; }
+    .method { font-size: 0.625rem; font-weight: 600; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+    .get { background: rgba(76,183,130,0.15); color: #4CB782; }
+    .post { background: rgba(112,51,255,0.15); color: #a78bfa; }
+    .path { color: #ccc; font-family: monospace; font-size: 0.8125rem; }
+    .desc { color: #555; font-size: 0.75rem; margin-left: auto; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <svg viewBox="0 0 26 26" fill="none"><rect x="2" y="6" width="6" height="16" rx="1.5" fill="white"/><rect x="10" y="10" width="6" height="12" rx="1.5" fill="white" fill-opacity="0.7"/><rect x="18" y="14" width="6" height="8" rx="1.5" fill="white" fill-opacity="0.4"/></svg>
+    </div>
+    <h1>xSquad MCP Server</h1>
+    <p class="subtitle">Model Context Protocol server para xSquad</p>
+    <div class="status"><span class="dot"></span> Operativo</div>
+    <div class="endpoints">
+      <h3>Endpoints</h3>
+      <div class="ep"><span class="method get">GET</span><span class="path">/health</span><span class="desc">Health check</span></div>
+      <div class="ep"><span class="method post">POST</span><span class="path">/mcp</span><span class="desc">MCP protocol</span></div>
+    </div>
+    <div class="info">
+      <span>v2.0.0 · ${sessions.size} sesiones activas</span>
+      <a href="/health">/health</a>
+    </div>
+  </div>
+</body>
+</html>`);
+      return;
+    }
+
     // Only handle /mcp path
-    if (req.url !== '/mcp') {
-      res.writeHead(404);
-      res.end('Not found');
+    if (req.url !== '/mcp' && !req.url?.startsWith('/mcp?')) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not found', endpoints: ['/', '/health', '/mcp'] }));
       return;
     }
 
