@@ -90,7 +90,9 @@ export function registerSquadTools(server: McpServer, client: ApiClient) {
           `- **Issue ID**: ${t.issue.id}`,
           `- **Tipo**: ${t.issue.type} | **Prioridad**: ${t.issue.priority}${t.issue.assigneeId ? ` | **Asignado a**: ${t.issue.assigneeId}` : ''}`,
           `- **Auto-execute**: ${t.project.autoExecute ? 'Sí (pipeline automático)' : 'No (requiere aprobación manual)'}`,
-          t.project.repoPath ? `- **Repo Path**: ${t.project.repoPath}` : '',
+          (t.project.repos && t.project.repos.length > 0)
+            ? `- **Repos**: ${t.project.repos.map((r) => `${r.name} (${r.path ?? '—'})`).join(', ')}`
+            : '',
           `- **Descripción**: ${t.issue.description || '(sin descripción)'}`,
           '',
         ].filter(Boolean).join('\n');

@@ -27,6 +27,7 @@ import { registerVersionTools } from './tools/versions.js';
 import { registerWatcherTools } from './tools/watchers.js';
 import { registerWorkLogTools } from './tools/work-logs.js';
 import { registerBulkTools } from './tools/bulk.js';
+import { registerSquadPickupTool } from './tools/squad-pickup.js';
 
 function createSquadServer(client: ApiClient): McpServer {
   const server = new McpServer({
@@ -44,6 +45,7 @@ function createSquadServer(client: ApiClient): McpServer {
   // Squad AI
   registerWorkerTools(server, client);
   registerSquadTools(server, client);
+  registerSquadPickupTool(server, client);
 
   // Collaboration
   registerTeamTools(server, client);
