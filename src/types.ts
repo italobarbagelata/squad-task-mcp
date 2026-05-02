@@ -16,6 +16,7 @@ export interface Issue {
   phaseContext?: Record<string, unknown>;
   techChecks?: Record<string, unknown>;
   invest?: Record<string, unknown>;
+  affectedRepos?: string[];
   epicColor?: string;
   assigneeId?: string;
   reporterId?: string;
@@ -41,13 +42,40 @@ export interface Project {
   leadId?: string;
   defaultAssigneeId?: string;
   projectType: string;
-  repoPath?: string;
+  techStack?: string;
   autoExecute?: boolean;
   issueCounter?: number;
   statuses: ProjectStatus[];
   issueTypes?: ProjectIssueType[];
+  repos?: ProjectRepo[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface ProjectRepo {
+  id: string;
+  projectId: string;
+  name: string;
+  path?: string;
+  provider: string; // 'github' | 'azure' | 'none'
+  githubRepo?: string;
+  azureOrg?: string;
+  azureProject?: string;
+  azureRepo?: string;
+  isPrimary: boolean;
+  webhookConfigured: boolean;
+}
+
+export interface IssuePR {
+  id: string;
+  issueId: string;
+  repoId: string;
+  repoName: string;
+  prNumber: number;
+  title?: string;
+  url?: string;
+  status: string; // 'open' | 'merged' | 'closed'
+  source: string; // 'webhook' | 'manual'
 }
 
 export interface ProjectStatus {
@@ -57,6 +85,39 @@ export interface ProjectStatus {
   color?: string;
   order: number;
   agentInstructions?: string;
+  systemRole?: string;
+  sddiMoment?: string;
+  sdlcStep?: string;
+  isDefaultForRole?: boolean;
+}
+
+export interface ProjectDocument {
+  id: string;
+  projectId: string;
+  title: string;
+  path: string;
+  content: string;
+  docType: string;
+  source: string;
+  taskTypes?: string[] | null;
+  version: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SquadContext {
+  issue: Issue;
+  currentStatus: ProjectStatus | null;
+  projectName: string;
+  projectKey: string;
+  techStack?: string;
+  repos: ProjectRepo[];
+  affectedRepoIds: string[];
+  linkedPrs: IssuePR[];
+  refinementMd?: string;
+  designMd?: string;
+  testPlanMd?: string;
+  documents: ProjectDocument[];
 }
 
 export interface ProjectIssueType {
