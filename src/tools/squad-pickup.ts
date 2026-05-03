@@ -1,5 +1,3 @@
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ApiClient } from '../api-client.js';
@@ -86,17 +84,8 @@ function renderSquadContext(ctx: SquadContext, targetRepo: ProjectRepo): string 
     sections.push('');
   }
 
-  if (ctx.linkedPrs.length > 0) {
-    sections.push('## Linked PRs (already opened)');
-    for (const pr of ctx.linkedPrs) {
-      sections.push(`- **${pr.repoName}** PR #${pr.prNumber} — ${pr.status}${pr.url ? ` (${pr.url})` : ''}`);
-    }
-    sections.push('');
-  }
-
-  if (ctx.documents.length > 0) {
-    sections.push('## Project documents (living spec)');
-    sections.push('');
+  if (ctx.documents && ctx.documents.length > 0) {
+    sections.push('## Project documents');
     for (const doc of ctx.documents) {
       sections.push(`### ${doc.docType.toUpperCase()}: ${doc.title} (v${doc.version})`);
       sections.push(doc.content.trim());
@@ -114,13 +103,12 @@ function renderSquadContext(ctx: SquadContext, targetRepo: ProjectRepo): string 
 export function registerSquadPickupTool(server: McpServer, client: ApiClient) {
   server.tool(
     'squad_pickup',
-    'Pick up a Squad AI ticket for local development. Resolves the issue by key (e.g. PROJ-123), writes a complete brief to .claude/SQUAD_CONTEXT.md in the target repo, marks the issue as in-progress, and assigns it to you. Multi-repo defaulting: if the issue declares affected_repos and there is exactly one, it is auto-selected (overriding primary). If multiple, you must pick from those. Otherwise the primary is used. Pass `repo` to override.',
+    'Pick up a Squad AI ticket for local development. Resolves the issue by key (e.g. PROJ-123), returns the rendered SQUAD_CONTEXT.md content for the assistant to write into the developer\'s repo, and marks the issue as in-progress in xSquad. Multi-repo defaulting: if the issue declares affected_repos and there is exactly one, it is auto-selected (overriding primary). If multiple, you must pick from those. Otherwise the primary is used. The assistant MUST write the returned markdown to `.claude/SQUAD_CONTEXT.md` in the target repo (creating the `.claude/` directory if needed) using its file-writing tool.',
     {
       issueKey: z.string().describe('Issue key, e.g. "PROJ-123". The same key shown in the xSquad UI.'),
       repo: z.string().optional().describe('Repo name when the project has more than one (e.g. "backend"). Defaults to the primary or the only one.'),
-      repoPath: z.string().optional().describe('Override the filesystem path where SQUAD_CONTEXT.md is written. Defaults to the resolved repo\'s configured path.'),
     },
-    async ({ issueKey, repo, repoPath }) => {
+    async ({ issueKey, repo }) => {
       const lookup = await client.api<IssueByKeyResponse>(
         `/api/ai/squad/issues/by-key/${encodeURIComponent(issueKey)}`,
       );
@@ -169,41 +157,18 @@ export function registerSquadPickupTool(server: McpServer, client: ApiClient) {
         };
       }
 
-      // 2. Resolve the filesystem path: explicit > repo's configured path.
-      const targetPath = repoPath ?? targetRepo.path;
-      if (!targetPath) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: [
-              `⚠️ Repo "${targetRepo.name}" has no path configured.`,
-              '',
-              `Either pass \`repoPath\` to this tool, or set the path in xSquad:`,
-              `  Settings → Squad AI → Repositories → ${targetRepo.name} → Path`,
-            ].join('\n'),
-          }],
-        };
-      }
-
-      const absRepo = resolve(targetPath);
-      const claudeDir = join(absRepo, '.claude');
-      const targetFile = join(claudeDir, 'SQUAD_CONTEXT.md');
-
+      // 2. Render the brief. We do NOT write to disk here: the hosted MCP
+      // has no access to the developer's filesystem, so the markdown is
+      // returned in the tool result and the assistant (Claude Code) writes
+      // it locally with its own file-writing tool. This works identically
+      // for stdio-mode local installs.
       const markdown = renderSquadContext(ctx, targetRepo);
-      try {
-        await mkdir(claudeDir, { recursive: true });
-        await writeFile(targetFile, markdown, 'utf-8');
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `❌ Failed to write ${targetFile}: ${message}\n\nMake sure the path exists and you have write access.`,
-          }],
-        };
-      }
+      const suggestedPath = targetRepo.path
+        ? `${targetRepo.path}/.claude/SQUAD_CONTEXT.md`
+        : `.claude/SQUAD_CONTEXT.md`;
 
       // 3. Mark the issue as picked up. Fail loud so the dev knows.
+      let pickupNote = '🔄 Status updated → human_active, assigned to you in xSquad';
       try {
         await client.api(
           `/api/projects/${lookup.project_id}/squad/issues/${lookup.id}/pickup`,
@@ -211,17 +176,11 @@ export function registerSquadPickupTool(server: McpServer, client: ApiClient) {
         );
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        return {
-          content: [{
-            type: 'text' as const,
-            text: [
-              `⚠️ Wrote ${targetFile} but could not transition the issue.`,
-              `Server said: ${message}`,
-              '',
-              `You can still start working — just move the ticket manually in xSquad.`,
-            ].join('\n'),
-          }],
-        };
+        pickupNote = [
+          `⚠️ Could not transition the issue to in-progress automatically.`,
+          `Server said: ${message}`,
+          `You can still start working — just move the ticket manually in xSquad.`,
+        ].join('\n');
       }
 
       const tokensApprox = Math.ceil(markdown.length / 4);
@@ -239,13 +198,19 @@ export function registerSquadPickupTool(server: McpServer, client: ApiClient) {
           text: [
             `✅ Picked up ${lookup.key}: ${lookup.title}`,
             '',
-            `📁 Repo: ${targetRepo.name} (${targetRepo.provider})`,
-            `📄 Brief written to: ${targetFile}`,
+            `📁 Target repo: ${targetRepo.name} (${targetRepo.provider})`,
             `🧠 ~${tokensApprox.toLocaleString()} tokens of context (refinement, design, test plan, project docs)`,
-            `🔄 Status updated → human_active, assigned to you in xSquad${multi}${affectedNote}`,
+            `${pickupNote}${multi}${affectedNote}`,
             '',
-            `**Next step:** read \`.claude/SQUAD_CONTEXT.md\` and start implementing.`,
-            `When done, open the PR; the Test and CI/CD agents will pick it up automatically.`,
+            `---`,
+            `**Action required (assistant):** write the markdown below verbatim to`,
+            `\`${suggestedPath}\` (create the \`.claude/\` directory if it does not exist).`,
+            `If the developer is working in a different absolute path, use \`<their-repo-root>/.claude/SQUAD_CONTEXT.md\` instead.`,
+            `After writing, tell the developer: "context saved at .claude/SQUAD_CONTEXT.md, read it and start with the first subtask".`,
+            ``,
+            `<<<BEGIN SQUAD_CONTEXT.md>>>`,
+            markdown,
+            `<<<END SQUAD_CONTEXT.md>>>`,
           ].join('\n'),
         }],
       };
