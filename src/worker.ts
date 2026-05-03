@@ -87,9 +87,10 @@ const SQUAD_AGENTS: Record<SquadPhase, AgentConfig> = {
       '',
       'Usa `mcp__squad__update_issue` para actualizar la descripción con los criterios de aceptación.',
       'Cuando termines, usa `mcp__squad__advance_task` para avanzar al siguiente paso.',
-      'Si el issue no tiene suficiente información, usa `mcp__squad__add_comment` pidiendo más contexto y NO avances la tarea.',
+      'Si el issue no tiene suficiente información, usa `mcp__squad__set_pending_questions` con la lista de preguntas que necesitas que responda el usuario y NO avances la tarea. Esto es un canal estructurado para clarificaciones — NO uses `add_comment` para preguntas.',
+      'Si el issue ya tiene preguntas previas con respuesta (ver el campo `pendingQuestions` en `get_issue`), úsalas para refinar y limpia las que ya no apliquen llamando `set_pending_questions` con la lista vacía o con las que sigan pendientes.',
     ].join('\n'),
-    allowedTools: 'mcp__squad__advance_task,mcp__squad__update_issue,mcp__squad__add_comment,mcp__squad__list_comments,mcp__squad__get_issue,Read,Glob,Grep',
+    allowedTools: 'mcp__squad__advance_task,mcp__squad__update_issue,mcp__squad__add_comment,mcp__squad__list_comments,mcp__squad__set_pending_questions,mcp__squad__get_issue,Read,Glob,Grep',
     timeout: 5 * 60 * 1000,
   },
   design: {

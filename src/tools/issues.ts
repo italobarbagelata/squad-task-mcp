@@ -121,6 +121,23 @@ export function registerIssueTools(server: McpServer, client: ApiClient) {
   );
 
   server.tool(
+    'set_pending_questions',
+    'Registra preguntas estructuradas que el usuario debe responder antes de continuar el refinement. Reemplaza la lista anterior. Usar SOLO desde el agente PO cuando falta información clave para refinar; NO avanzar la tarea hasta que el usuario responda.',
+    {
+      projectId: z.string().describe('ID del proyecto'),
+      issueId: z.string().describe('ID del issue'),
+      questions: z.array(z.string()).describe('Lista de preguntas en lenguaje natural. Pasar [] para limpiar todas.'),
+    },
+    async ({ projectId, issueId, questions }) => {
+      const issue = await client.api(`/api/projects/${projectId}/issues/${issueId}/pending-questions`, {
+        method: 'PUT',
+        body: JSON.stringify({ questions }),
+      });
+      return { content: [{ type: 'text', text: JSON.stringify(issue, null, 2) }] };
+    },
+  );
+
+  server.tool(
     'change_issue_status',
     'Cambia el estado de un issue (ej: mover de "todo" a "in-progress").',
     {
