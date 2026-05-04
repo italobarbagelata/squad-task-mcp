@@ -113,10 +113,15 @@ export interface SquadContext {
   repos: ProjectRepo[];
   affectedRepoIds: string[];
   linkedPrs: IssuePR[];
-  refinementMd?: string;
-  designMd?: string;
-  testPlanMd?: string;
-  documents: ProjectDocument[];
+  specMd?: string;
+  documentRefs: ProjectDocumentRef[];
+}
+
+export interface ProjectDocumentRef {
+  id: string;
+  title: string;
+  docType: string;
+  version: number;
 }
 
 export interface ProjectIssueType {

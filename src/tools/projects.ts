@@ -48,7 +48,9 @@ export function registerProjectTools(server: McpServer, client: ApiClient) {
       projectId: z.string().describe('ID del proyecto'),
       name: z.string().optional().describe('Nuevo nombre'),
       description: z.string().optional().describe('Nueva descripción'),
+      techStack: z.string().optional().describe('Stack técnico (visible en prompts de agentes)'),
       autoExecute: z.boolean().optional().describe('Auto-ejecutar tareas en pipeline Squad AI'),
+      specTemplateMd: z.string().optional().describe('SDD template (Markdown) usado para inicializar Issue.spec_md'),
     },
     async ({ projectId, ...body }) => {
       const project = await client.api(`/api/projects/${projectId}`, {
