@@ -17,13 +17,12 @@ export function registerProjectRepoTools(server: McpServer, client: ApiClient) {
 
   server.tool(
     'update_project_repo',
-    'Actualiza un repositorio del proyecto. Útil para setear el spec_template_md por repo.',
+    'Actualiza un repositorio del proyecto.',
     {
       projectId: z.string().describe('ID del proyecto'),
       repoId: z.string().describe('ID del repo (e.g. "repo-abc123")'),
       name: z.string().optional().describe('Nuevo nombre'),
       isPrimary: z.boolean().optional().describe('Marcar como repo primario'),
-      specTemplateMd: z.string().optional().describe('SDD template específico para este repo'),
     },
     async ({ projectId, repoId, ...body }) => {
       const repo = await client.api(`/api/projects/${projectId}/repos/${repoId}`, {
