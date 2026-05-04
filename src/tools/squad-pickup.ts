@@ -163,9 +163,7 @@ export function registerSquadPickupTool(server: McpServer, client: ApiClient) {
       // it locally with its own file-writing tool. This works identically
       // for stdio-mode local installs.
       const markdown = renderSquadContext(ctx, targetRepo);
-      const suggestedPath = targetRepo.path
-        ? `${targetRepo.path}/.claude/SQUAD_CONTEXT.md`
-        : `.claude/SQUAD_CONTEXT.md`;
+      const suggestedPath = `.claude/SQUAD_CONTEXT.md`;
 
       // 3. Mark the issue as picked up. Fail loud so the dev knows.
       let pickupNote = '🔄 Status updated → human_active, assigned to you in xSquad';
@@ -204,8 +202,7 @@ export function registerSquadPickupTool(server: McpServer, client: ApiClient) {
             '',
             `---`,
             `**Action required (assistant):** write the markdown below verbatim to`,
-            `\`${suggestedPath}\` (create the \`.claude/\` directory if it does not exist).`,
-            `If the developer is working in a different absolute path, use \`<their-repo-root>/.claude/SQUAD_CONTEXT.md\` instead.`,
+            `\`${suggestedPath}\` in the developer's current working directory (create the \`.claude/\` directory if it does not exist).`,
             `After writing, tell the developer: "context saved at .claude/SQUAD_CONTEXT.md, read it and start with the first subtask".`,
             ``,
             `<<<BEGIN SQUAD_CONTEXT.md>>>`,

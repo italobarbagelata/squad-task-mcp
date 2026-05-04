@@ -91,7 +91,7 @@ export function registerSquadTools(server: McpServer, client: ApiClient) {
           `- **Tipo**: ${t.issue.type} | **Prioridad**: ${t.issue.priority}${t.issue.assigneeId ? ` | **Asignado a**: ${t.issue.assigneeId}` : ''}`,
           `- **Auto-execute**: ${t.project.autoExecute ? 'Sí (pipeline automático)' : 'No (requiere aprobación manual)'}`,
           (t.project.repos && t.project.repos.length > 0)
-            ? `- **Repos**: ${t.project.repos.map((r) => `${r.name} (${r.path ?? '—'})`).join(', ')}`
+            ? `- **Repos**: ${t.project.repos.map((r) => r.name).join(', ')}`
             : '',
           `- **Descripción**: ${t.issue.description || '(sin descripción)'}`,
           '',

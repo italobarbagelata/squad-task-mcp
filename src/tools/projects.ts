@@ -31,7 +31,6 @@ export function registerProjectTools(server: McpServer, client: ApiClient) {
       key: z.string().describe('Clave corta del proyecto (ej: "TT", "MOBILE")'),
       description: z.string().optional().describe('Descripción del proyecto'),
       projectType: z.enum(['scrum', 'kanban', 'squad_ai']).describe('Tipo de proyecto'),
-      repoPath: z.string().optional().describe('Ruta al repositorio de código'),
     },
     async ({ ...body }) => {
       const project = await client.api('/api/projects', {
@@ -49,7 +48,6 @@ export function registerProjectTools(server: McpServer, client: ApiClient) {
       projectId: z.string().describe('ID del proyecto'),
       name: z.string().optional().describe('Nuevo nombre'),
       description: z.string().optional().describe('Nueva descripción'),
-      repoPath: z.string().optional().describe('Ruta al repositorio'),
       autoExecute: z.boolean().optional().describe('Auto-ejecutar tareas en pipeline Squad AI'),
     },
     async ({ projectId, ...body }) => {

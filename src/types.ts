@@ -56,7 +56,6 @@ export interface ProjectRepo {
   id: string;
   projectId: string;
   name: string;
-  path?: string;
   provider: string; // 'github' | 'azure' | 'none'
   githubRepo?: string;
   azureOrg?: string;
