@@ -97,6 +97,7 @@ export function registerIssueTools(server: McpServer, client: ApiClient) {
       dueDate: z.string().optional().describe('Nueva fecha límite ISO'),
       startDate: z.string().optional().describe('Nueva fecha de inicio ISO'),
       epicId: z.string().optional().describe('Nuevo epic ID'),
+      specMd: z.string().optional().describe('Living spec markdown completo del issue. Mandar string vacío para resetearlo.'),
     },
     async ({ projectId, issueId, ...body }) => {
       const issue = await client.api(`/api/projects/${projectId}/issues/${issueId}`, {
