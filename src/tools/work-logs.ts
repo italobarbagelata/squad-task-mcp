@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ApiClient } from '../api-client.js';
+import { seg } from '../api-client.js';
 
 export function registerWorkLogTools(server: McpServer, client: ApiClient) {
   server.tool(
@@ -8,7 +9,7 @@ export function registerWorkLogTools(server: McpServer, client: ApiClient) {
     'Lista todos los registros de trabajo (work logs) de un issue.',
     { issueId: z.string().describe('ID del issue') },
     async ({ issueId }) => {
-      const logs = await client.api(`/api/issues/${issueId}/work-logs`);
+      const logs = await client.api(`/api/issues/${seg(issueId)}/work-logs`);
       return { content: [{ type: 'text', text: JSON.stringify(logs, null, 2) }] };
     },
   );
@@ -23,7 +24,7 @@ export function registerWorkLogTools(server: McpServer, client: ApiClient) {
       workDate: z.string().describe('Fecha del trabajo (ISO 8601)'),
     },
     async ({ issueId, timeSpent, description, workDate }) => {
-      const log = await client.api(`/api/issues/${issueId}/work-logs`, {
+      const log = await client.api(`/api/issues/${seg(issueId)}/work-logs`, {
         method: 'POST',
         body: JSON.stringify({ timeSpent, description, workDate }),
       });
@@ -42,7 +43,7 @@ export function registerWorkLogTools(server: McpServer, client: ApiClient) {
       workDate: z.string().optional().describe('Nueva fecha'),
     },
     async ({ issueId, workLogId, ...data }) => {
-      const log = await client.api(`/api/issues/${issueId}/work-logs/${workLogId}`, {
+      const log = await client.api(`/api/issues/${seg(issueId)}/work-logs/${seg(workLogId)}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });
@@ -58,7 +59,7 @@ export function registerWorkLogTools(server: McpServer, client: ApiClient) {
       workLogId: z.string().describe('ID del work log'),
     },
     async ({ issueId, workLogId }) => {
-      await client.api(`/api/issues/${issueId}/work-logs/${workLogId}`, {
+      await client.api(`/api/issues/${seg(issueId)}/work-logs/${seg(workLogId)}`, {
         method: 'DELETE',
       });
       return { content: [{ type: 'text', text: 'Work log deleted successfully' }] };

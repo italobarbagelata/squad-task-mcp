@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ApiClient } from '../api-client.js';
+import { seg } from '../api-client.js';
 
 export function registerWatcherTools(server: McpServer, client: ApiClient) {
   server.tool(
@@ -8,7 +9,7 @@ export function registerWatcherTools(server: McpServer, client: ApiClient) {
     'Lista todos los watchers (observadores) de un issue.',
     { issueId: z.string().describe('ID del issue') },
     async ({ issueId }) => {
-      const watchers = await client.api(`/api/issues/${issueId}/watchers`);
+      const watchers = await client.api(`/api/issues/${seg(issueId)}/watchers`);
       return { content: [{ type: 'text', text: JSON.stringify(watchers, null, 2) }] };
     },
   );
@@ -18,7 +19,7 @@ export function registerWatcherTools(server: McpServer, client: ApiClient) {
     'Agrega al usuario actual como watcher del issue para recibir notificaciones.',
     { issueId: z.string().describe('ID del issue') },
     async ({ issueId }) => {
-      const watcher = await client.api(`/api/issues/${issueId}/watchers`, {
+      const watcher = await client.api(`/api/issues/${seg(issueId)}/watchers`, {
         method: 'POST',
         body: JSON.stringify({}),
       });
@@ -31,7 +32,7 @@ export function registerWatcherTools(server: McpServer, client: ApiClient) {
     'Deja de observar un issue (quita al usuario actual como watcher).',
     { issueId: z.string().describe('ID del issue') },
     async ({ issueId }) => {
-      await client.api(`/api/issues/${issueId}/watchers`, { method: 'DELETE' });
+      await client.api(`/api/issues/${seg(issueId)}/watchers`, { method: 'DELETE' });
       return { content: [{ type: 'text', text: 'Unwatched successfully' }] };
     },
   );
@@ -41,7 +42,7 @@ export function registerWatcherTools(server: McpServer, client: ApiClient) {
     'Verifica si el usuario actual está observando un issue.',
     { issueId: z.string().describe('ID del issue') },
     async ({ issueId }) => {
-      const result = await client.api(`/api/issues/${issueId}/watchers/me`);
+      const result = await client.api(`/api/issues/${seg(issueId)}/watchers/me`);
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
     },
   );

@@ -80,16 +80,44 @@ async function startStdio() {
 
 async function startHttp() {
   const PORT = parseInt(process.env.MCP_PORT || '3001', 10);
+  const HOST = process.env.HOST ?? '127.0.0.1';
+  const API_URL = process.env.SQUAD_API_URL || process.env.TASKMANAGER_API_URL || 'http://localhost:8000';
+  const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  const SESSION_TTL_MS = 30 * 60 * 1000;
+  const MAX_SESSIONS = 100;
 
-  // Map of session ID -> { server, transport }
-  const sessions = new Map<string, { server: McpServer; transport: StreamableHTTPServerTransport }>();
+  // Map of session ID -> { server, transport, lastSeen }
+  const sessions = new Map<
+    string,
+    { server: McpServer; transport: StreamableHTTPServerTransport; lastSeen: number }
+  >();
+
+  // Evict sessions idle for longer than SESSION_TTL_MS.
+  const sweeper = setInterval(() => {
+    const now = Date.now();
+    for (const [sid, session] of sessions) {
+      if (now - session.lastSeen > SESSION_TTL_MS) {
+        sessions.delete(sid);
+        session.transport.close().catch(() => {});
+        console.log(`Session expired: ${sid}`);
+      }
+    }
+  }, 60 * 1000);
+  sweeper.unref();
 
   const httpServer = createServer(async (req, res) => {
-    // CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-session-id, x-squad-email, x-squad-password, x-squad-api-url');
-    res.setHeader('Access-Control-Expose-Headers', 'mcp-session-id');
+    // CORS: only for explicitly allowed origins (MCP clients are not browsers).
+    const origin = req.headers.origin;
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-session-id, x-squad-email, x-squad-password');
+      res.setHeader('Access-Control-Expose-Headers', 'mcp-session-id');
+    }
 
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
@@ -174,6 +202,7 @@ async function startHttp() {
     if (sessionId && sessions.has(sessionId)) {
       // Existing session - route to its transport
       const session = sessions.get(sessionId)!;
+      session.lastSeen = Date.now();
       await session.transport.handleRequest(req, res);
       return;
     }
@@ -190,7 +219,6 @@ async function startHttp() {
       // Extract per-user credentials from headers
       const userEmail = req.headers['x-squad-email'] as string | undefined;
       const userPassword = req.headers['x-squad-password'] as string | undefined;
-      const userApiUrl = req.headers['x-squad-api-url'] as string | undefined;
 
       if (!userEmail || !userPassword) {
         res.writeHead(401, { 'Content-Type': 'application/json' });
@@ -200,8 +228,14 @@ async function startHttp() {
         return;
       }
 
+      if (sessions.size >= MAX_SESSIONS) {
+        res.writeHead(503, { 'Content-Type': 'application/json', 'Retry-After': '60' });
+        res.end(JSON.stringify({ error: 'Too many active sessions, try again later' }));
+        return;
+      }
+
       const client = new ApiClient({
-        apiUrl: userApiUrl || process.env.SQUAD_API_URL || 'http://localhost:8000',
+        apiUrl: API_URL,
         email: userEmail,
         password: userPassword,
       });
@@ -237,7 +271,7 @@ async function startHttp() {
       // Store the session after handling (session ID is set by handleRequest)
       const newSessionId = transport.sessionId;
       if (newSessionId) {
-        sessions.set(newSessionId, { server, transport });
+        sessions.set(newSessionId, { server, transport, lastSeen: Date.now() });
         console.log(`New session: ${newSessionId}`);
       }
 
@@ -249,10 +283,10 @@ async function startHttp() {
     res.end(JSON.stringify({ error: 'Bad request - session ID required for GET, or use POST to initialize' }));
   });
 
-  httpServer.listen(PORT, () => {
+  httpServer.listen(PORT, HOST, () => {
     console.log(`Squad MCP Server v2.0.0 (HTTP mode)`);
-    console.log(`Listening on http://0.0.0.0:${PORT}/mcp`);
-    console.log(`Health check: http://0.0.0.0:${PORT}/health`);
+    console.log(`Listening on http://${HOST}:${PORT}/mcp`);
+    console.log(`Health check: http://${HOST}:${PORT}/health`);
   });
 }
 

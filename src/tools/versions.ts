@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ApiClient } from '../api-client.js';
+import { seg } from '../api-client.js';
 
 export function registerVersionTools(server: McpServer, client: ApiClient) {
   server.tool(
@@ -8,7 +9,7 @@ export function registerVersionTools(server: McpServer, client: ApiClient) {
     'Lista todas las versiones/releases de un proyecto.',
     { projectId: z.string().describe('ID del proyecto') },
     async ({ projectId }) => {
-      const versions = await client.api(`/api/projects/${projectId}/versions`);
+      const versions = await client.api(`/api/projects/${seg(projectId)}/versions`);
       return { content: [{ type: 'text', text: JSON.stringify(versions, null, 2) }] };
     },
   );
@@ -21,7 +22,7 @@ export function registerVersionTools(server: McpServer, client: ApiClient) {
       versionId: z.string().describe('ID de la versión'),
     },
     async ({ projectId, versionId }) => {
-      const version = await client.api(`/api/projects/${projectId}/versions/${versionId}`);
+      const version = await client.api(`/api/projects/${seg(projectId)}/versions/${seg(versionId)}`);
       return { content: [{ type: 'text', text: JSON.stringify(version, null, 2) }] };
     },
   );
@@ -37,7 +38,7 @@ export function registerVersionTools(server: McpServer, client: ApiClient) {
       releaseDate: z.string().optional().describe('Fecha de release planificada (ISO 8601)'),
     },
     async ({ projectId, name, description, startDate, releaseDate }) => {
-      const version = await client.api(`/api/projects/${projectId}/versions`, {
+      const version = await client.api(`/api/projects/${seg(projectId)}/versions`, {
         method: 'POST',
         body: JSON.stringify({ name, description, startDate, releaseDate }),
       });
@@ -58,7 +59,7 @@ export function registerVersionTools(server: McpServer, client: ApiClient) {
       releaseDate: z.string().optional().describe('Nueva fecha de release'),
     },
     async ({ projectId, versionId, ...data }) => {
-      const version = await client.api(`/api/projects/${projectId}/versions/${versionId}`, {
+      const version = await client.api(`/api/projects/${seg(projectId)}/versions/${seg(versionId)}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });
@@ -74,7 +75,7 @@ export function registerVersionTools(server: McpServer, client: ApiClient) {
       versionId: z.string().describe('ID de la versión'),
     },
     async ({ projectId, versionId }) => {
-      const version = await client.api(`/api/projects/${projectId}/versions/${versionId}/release`, {
+      const version = await client.api(`/api/projects/${seg(projectId)}/versions/${seg(versionId)}/release`, {
         method: 'POST',
       });
       return { content: [{ type: 'text', text: JSON.stringify(version, null, 2) }] };
@@ -89,7 +90,7 @@ export function registerVersionTools(server: McpServer, client: ApiClient) {
       versionId: z.string().describe('ID de la versión'),
     },
     async ({ projectId, versionId }) => {
-      await client.api(`/api/projects/${projectId}/versions/${versionId}`, {
+      await client.api(`/api/projects/${seg(projectId)}/versions/${seg(versionId)}`, {
         method: 'DELETE',
       });
       return { content: [{ type: 'text', text: 'Version deleted successfully' }] };

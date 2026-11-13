@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ApiClient } from '../api-client.js';
+import { seg } from '../api-client.js';
 
 export function registerTeamTools(server: McpServer, client: ApiClient) {
   server.tool(
@@ -18,7 +19,7 @@ export function registerTeamTools(server: McpServer, client: ApiClient) {
     'Obtiene el detalle de un equipo por su ID.',
     { teamId: z.string().describe('ID del equipo') },
     async ({ teamId }) => {
-      const team = await client.api(`/api/teams/${teamId}`);
+      const team = await client.api(`/api/teams/${seg(teamId)}`);
       return { content: [{ type: 'text', text: JSON.stringify(team, null, 2) }] };
     },
   );
@@ -48,7 +49,7 @@ export function registerTeamTools(server: McpServer, client: ApiClient) {
       description: z.string().optional().describe('Nueva descripción'),
     },
     async ({ teamId, ...body }) => {
-      const team = await client.api(`/api/teams/${teamId}`, {
+      const team = await client.api(`/api/teams/${seg(teamId)}`, {
         method: 'PUT',
         body: JSON.stringify(body),
       });
@@ -64,7 +65,7 @@ export function registerTeamTools(server: McpServer, client: ApiClient) {
       userId: z.string().describe('ID del usuario a agregar'),
     },
     async ({ teamId, userId }) => {
-      const result = await client.api(`/api/teams/${teamId}/members`, {
+      const result = await client.api(`/api/teams/${seg(teamId)}/members`, {
         method: 'POST',
         body: JSON.stringify({ userId }),
       });
@@ -80,7 +81,7 @@ export function registerTeamTools(server: McpServer, client: ApiClient) {
       userId: z.string().describe('ID del usuario a remover'),
     },
     async ({ teamId, userId }) => {
-      await client.api(`/api/teams/${teamId}/members/${userId}`, { method: 'DELETE' });
+      await client.api(`/api/teams/${seg(teamId)}/members/${seg(userId)}`, { method: 'DELETE' });
       return { content: [{ type: 'text', text: `Miembro ${userId} removido del equipo.` }] };
     },
   );

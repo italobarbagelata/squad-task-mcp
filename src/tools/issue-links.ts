@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ApiClient } from '../api-client.js';
+import { seg } from '../api-client.js';
 
 export function registerIssueLinkTools(server: McpServer, client: ApiClient) {
   server.tool(
@@ -11,7 +12,7 @@ export function registerIssueLinkTools(server: McpServer, client: ApiClient) {
       issueId: z.string().describe('ID del issue'),
     },
     async ({ projectId, issueId }) => {
-      const links = await client.api(`/api/projects/${projectId}/issues/${issueId}/links`);
+      const links = await client.api(`/api/projects/${seg(projectId)}/issues/${seg(issueId)}/links`);
       return { content: [{ type: 'text', text: JSON.stringify(links, null, 2) }] };
     },
   );
@@ -26,7 +27,7 @@ export function registerIssueLinkTools(server: McpServer, client: ApiClient) {
       linkType: z.enum(['blocks', 'relates_to', 'duplicates', 'causes']).describe('Tipo de relación'),
     },
     async ({ projectId, issueId, targetIssueId, linkType }) => {
-      const link = await client.api(`/api/projects/${projectId}/issues/${issueId}/links`, {
+      const link = await client.api(`/api/projects/${seg(projectId)}/issues/${seg(issueId)}/links`, {
         method: 'POST',
         body: JSON.stringify({ targetIssueId, linkType }),
       });
@@ -43,7 +44,7 @@ export function registerIssueLinkTools(server: McpServer, client: ApiClient) {
       linkId: z.string().describe('ID del link a eliminar'),
     },
     async ({ projectId, issueId, linkId }) => {
-      await client.api(`/api/projects/${projectId}/issues/${issueId}/links/${linkId}`, { method: 'DELETE' });
+      await client.api(`/api/projects/${seg(projectId)}/issues/${seg(issueId)}/links/${seg(linkId)}`, { method: 'DELETE' });
       return { content: [{ type: 'text', text: `Link ${linkId} eliminado.` }] };
     },
   );

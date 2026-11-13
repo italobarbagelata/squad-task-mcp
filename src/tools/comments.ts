@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ApiClient } from '../api-client.js';
+import { seg } from '../api-client.js';
 
 export function registerCommentTools(server: McpServer, client: ApiClient) {
   server.tool(
@@ -8,7 +9,7 @@ export function registerCommentTools(server: McpServer, client: ApiClient) {
     'Lista todos los comentarios de un issue, ordenados cronológicamente.',
     { issueId: z.string().describe('ID del issue') },
     async ({ issueId }) => {
-      const comments = await client.api(`/api/issues/${issueId}/comments`);
+      const comments = await client.api(`/api/issues/${seg(issueId)}/comments`);
       return { content: [{ type: 'text', text: JSON.stringify(comments, null, 2) }] };
     },
   );
@@ -21,7 +22,7 @@ export function registerCommentTools(server: McpServer, client: ApiClient) {
       content: z.string().describe('Contenido del comentario'),
     },
     async ({ issueId, content }) => {
-      const comment = await client.api(`/api/issues/${issueId}/comments`, {
+      const comment = await client.api(`/api/issues/${seg(issueId)}/comments`, {
         method: 'POST',
         body: JSON.stringify({ content }),
       });

@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ApiClient } from '../api-client.js';
+import { seg } from '../api-client.js';
 
 export function registerNotificationTools(server: McpServer, client: ApiClient) {
   server.tool(
@@ -28,7 +29,7 @@ export function registerNotificationTools(server: McpServer, client: ApiClient) 
     'Marca una notificación como leída.',
     { notificationId: z.string().describe('ID de la notificación') },
     async ({ notificationId }) => {
-      await client.api(`/api/notifications/${notificationId}/read`, { method: 'PUT' });
+      await client.api(`/api/notifications/${seg(notificationId)}/read`, { method: 'PUT' });
       return { content: [{ type: 'text', text: 'Notificación marcada como leída.' }] };
     },
   );

@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ApiClient } from '../api-client.js';
+import { seg } from '../api-client.js';
 
 export function registerInvitationTools(server: McpServer, client: ApiClient) {
   server.tool(
@@ -36,7 +37,7 @@ export function registerInvitationTools(server: McpServer, client: ApiClient) {
     'Cancela una invitación pendiente.',
     { invitationId: z.string().describe('ID de la invitación a cancelar') },
     async ({ invitationId }) => {
-      await client.api(`/api/invitations/${invitationId}`, { method: 'DELETE' });
+      await client.api(`/api/invitations/${seg(invitationId)}`, { method: 'DELETE' });
       return { content: [{ type: 'text', text: `Invitación ${invitationId} cancelada.` }] };
     },
   );

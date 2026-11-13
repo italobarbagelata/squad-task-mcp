@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ApiClient } from '../api-client.js';
+import { seg } from '../api-client.js';
 
 export function registerBulkTools(server: McpServer, client: ApiClient) {
   server.tool(
@@ -17,7 +18,7 @@ export function registerBulkTools(server: McpServer, client: ApiClient) {
       labelIds: z.array(z.string()).optional().describe('Nuevos labels para todos'),
     },
     async ({ projectId, ...data }) => {
-      const result = await client.api(`/api/projects/${projectId}/issues/bulk`, {
+      const result = await client.api(`/api/projects/${seg(projectId)}/issues/bulk`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });
@@ -33,7 +34,7 @@ export function registerBulkTools(server: McpServer, client: ApiClient) {
       issueIds: z.array(z.string()).describe('Lista de IDs de issues a eliminar'),
     },
     async ({ projectId, issueIds }) => {
-      const result = await client.api(`/api/projects/${projectId}/issues/bulk/delete`, {
+      const result = await client.api(`/api/projects/${seg(projectId)}/issues/bulk/delete`, {
         method: 'POST',
         body: JSON.stringify({ issueIds }),
       });

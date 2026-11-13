@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ApiClient } from '../api-client.js';
+import { seg } from '../api-client.js';
 
 export function registerProjectRepoTools(server: McpServer, client: ApiClient) {
   server.tool(
@@ -10,7 +11,7 @@ export function registerProjectRepoTools(server: McpServer, client: ApiClient) {
       projectId: z.string().describe('ID del proyecto'),
     },
     async ({ projectId }) => {
-      const repos = await client.api(`/api/projects/${projectId}/repos`);
+      const repos = await client.api(`/api/projects/${seg(projectId)}/repos`);
       return { content: [{ type: 'text', text: JSON.stringify(repos, null, 2) }] };
     },
   );
@@ -25,7 +26,7 @@ export function registerProjectRepoTools(server: McpServer, client: ApiClient) {
       isPrimary: z.boolean().optional().describe('Marcar como repo primario'),
     },
     async ({ projectId, repoId, ...body }) => {
-      const repo = await client.api(`/api/projects/${projectId}/repos/${repoId}`, {
+      const repo = await client.api(`/api/projects/${seg(projectId)}/repos/${seg(repoId)}`, {
         method: 'PUT',
         body: JSON.stringify(body),
       });

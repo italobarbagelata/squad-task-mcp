@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { ApiClient } from '../api-client.js';
+import { seg } from '../api-client.js';
 
 export function registerLabelTools(server: McpServer, client: ApiClient) {
   server.tool(
@@ -34,7 +35,7 @@ export function registerLabelTools(server: McpServer, client: ApiClient) {
     'Elimina una etiqueta.',
     { labelId: z.string().describe('ID de la etiqueta a eliminar') },
     async ({ labelId }) => {
-      await client.api(`/api/labels/${labelId}`, { method: 'DELETE' });
+      await client.api(`/api/labels/${seg(labelId)}`, { method: 'DELETE' });
       return { content: [{ type: 'text', text: `Etiqueta ${labelId} eliminada.` }] };
     },
   );
