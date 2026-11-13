@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { ApiClient, createApiClientFromEnv } from './api-client.js';
 import { registerProjectTools } from './tools/projects.js';
@@ -88,6 +88,20 @@ async function startHttp() {
     .filter(Boolean);
   const SESSION_TTL_MS = 30 * 60 * 1000;
   const MAX_SESSIONS = 100;
+  const CLIENT_TTL_MS = 30 * 60 * 1000;
+  const FAILED_LOGIN_TTL_MS = 30 * 1000;
+  const MAX_CACHED_CLIENTS = 500;
+
+  // Authenticated API clients reused across MCP sessions with the same
+  // credentials. Every MCP `initialize` used to log in again; clients that
+  // reconnect in bursts exhausted the backend's per-IP login rate limit
+  // (all MCP logins share this server's IP). Keyed by a hash so raw
+  // credentials are never used as map keys.
+  const clientCache = new Map<string, { client: ApiClient; lastUsed: number }>();
+  // Recently failed credentials: answer 401 locally instead of hammering login.
+  const failedLogins = new Map<string, number>();
+  const credentialKey = (email: string, password: string) =>
+    createHash('sha256').update(`${API_URL}\0${email}\0${password}`).digest('hex');
 
   // Map of session ID -> { server, transport, lastSeen }
   const sessions = new Map<
@@ -95,9 +109,16 @@ async function startHttp() {
     { server: McpServer; transport: StreamableHTTPServerTransport; lastSeen: number }
   >();
 
-  // Evict sessions idle for longer than SESSION_TTL_MS.
+  // Evict sessions idle for longer than SESSION_TTL_MS, plus stale cached
+  // clients and expired failed-login entries.
   const sweeper = setInterval(() => {
     const now = Date.now();
+    for (const [key, entry] of clientCache) {
+      if (now - entry.lastUsed > CLIENT_TTL_MS) clientCache.delete(key);
+    }
+    for (const [key, failedAt] of failedLogins) {
+      if (now - failedAt > FAILED_LOGIN_TTL_MS) failedLogins.delete(key);
+    }
     for (const [sid, session] of sessions) {
       if (now - session.lastSeen > SESSION_TTL_MS) {
         sessions.delete(sid);
@@ -234,19 +255,40 @@ async function startHttp() {
         return;
       }
 
-      const client = new ApiClient({
-        apiUrl: API_URL,
-        email: userEmail,
-        password: userPassword,
-      });
-
-      // Verify credentials before creating session
-      try {
-        await client.ensureAuth();
-      } catch {
+      const key = credentialKey(userEmail, userPassword);
+      const failedAt = failedLogins.get(key);
+      if (failedAt && Date.now() - failedAt < FAILED_LOGIN_TTL_MS) {
         res.writeHead(401, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid credentials' }));
         return;
+      }
+
+      let client: ApiClient;
+      const cached = clientCache.get(key);
+      if (cached) {
+        cached.lastUsed = Date.now();
+        client = cached.client;
+      } else {
+        client = new ApiClient({
+          apiUrl: API_URL,
+          email: userEmail,
+          password: userPassword,
+        });
+        // Verify credentials before creating session
+        try {
+          await client.ensureAuth();
+        } catch (err) {
+          failedLogins.set(key, Date.now());
+          console.warn(`Login failed for MCP session: ${(err as Error).message.slice(0, 120)}`);
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid credentials' }));
+          return;
+        }
+        if (clientCache.size >= MAX_CACHED_CLIENTS) {
+          const oldest = [...clientCache.entries()].sort((a, b) => a[1].lastUsed - b[1].lastUsed)[0];
+          if (oldest) clientCache.delete(oldest[0]);
+        }
+        clientCache.set(key, { client, lastUsed: Date.now() });
       }
 
       const transport = new StreamableHTTPServerTransport({
