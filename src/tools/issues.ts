@@ -5,7 +5,7 @@ import type { ApiClient } from '../api-client.js';
 export function registerIssueTools(server: McpServer, client: ApiClient) {
   server.tool(
     'list_issues',
-    'Lista issues de un proyecto con filtros opcionales. Usa los filtros para buscar por sprint, estado, asignado, tipo, prioridad o execution status.',
+    'Lista issues de un proyecto con filtros opcionales. Usa los filtros para buscar por sprint, estado, asignado, tipo, o prioridad.',
     {
       projectId: z.string().describe('ID del proyecto'),
       sprint: z.string().optional().describe('Filtrar por sprint ID. Usar "backlog" para issues sin sprint'),
@@ -13,16 +13,14 @@ export function registerIssueTools(server: McpServer, client: ApiClient) {
       assignee: z.string().optional().describe('Filtrar por ID del usuario asignado'),
       type: z.string().optional().describe('Filtrar por tipo: story, task, bug, epic, subtask'),
       priority: z.string().optional().describe('Filtrar por prioridad: highest, high, medium, low, lowest'),
-      executionStatus: z.string().optional().describe('Filtrar por execution status: pending, execute, executing, executed, failed'),
     },
-    async ({ projectId, sprint, status, assignee, type, priority, executionStatus }) => {
+    async ({ projectId, sprint, status, assignee, type, priority }) => {
       const params = new URLSearchParams();
       if (sprint) params.set('sprint', sprint);
       if (status) params.set('status', status);
       if (assignee) params.set('assignee', assignee);
       if (type) params.set('type', type);
       if (priority) params.set('priority', priority);
-      if (executionStatus) params.set('execution_status', executionStatus);
       const qs = params.toString();
       const issues = await client.api(`/api/projects/${projectId}/issues${qs ? `?${qs}` : ''}`);
       return { content: [{ type: 'text', text: JSON.stringify(issues, null, 2) }] };
@@ -97,7 +95,6 @@ export function registerIssueTools(server: McpServer, client: ApiClient) {
       dueDate: z.string().optional().describe('Nueva fecha límite ISO'),
       startDate: z.string().optional().describe('Nueva fecha de inicio ISO'),
       epicId: z.string().optional().describe('Nuevo epic ID'),
-      specMd: z.string().optional().describe('Living spec markdown completo del issue. Mandar string vacío para resetearlo.'),
     },
     async ({ projectId, issueId, ...body }) => {
       const issue = await client.api(`/api/projects/${projectId}/issues/${issueId}`, {
@@ -118,23 +115,6 @@ export function registerIssueTools(server: McpServer, client: ApiClient) {
     async ({ projectId, issueId }) => {
       await client.api(`/api/projects/${projectId}/issues/${issueId}`, { method: 'DELETE' });
       return { content: [{ type: 'text', text: `Issue ${issueId} eliminado.` }] };
-    },
-  );
-
-  server.tool(
-    'set_pending_questions',
-    'Registra preguntas estructuradas que el usuario debe responder antes de continuar el refinement. Reemplaza la lista anterior. Usar SOLO desde el agente PO cuando falta información clave para refinar; NO avanzar la tarea hasta que el usuario responda.',
-    {
-      projectId: z.string().describe('ID del proyecto'),
-      issueId: z.string().describe('ID del issue'),
-      questions: z.array(z.string()).describe('Lista de preguntas en lenguaje natural. Pasar [] para limpiar todas.'),
-    },
-    async ({ projectId, issueId, questions }) => {
-      const issue = await client.api(`/api/projects/${projectId}/issues/${issueId}/pending-questions`, {
-        method: 'PUT',
-        body: JSON.stringify({ questions }),
-      });
-      return { content: [{ type: 'text', text: JSON.stringify(issue, null, 2) }] };
     },
   );
 
@@ -184,23 +164,6 @@ export function registerIssueTools(server: McpServer, client: ApiClient) {
       const issue = await client.api(`/api/projects/${projectId}/issues/${issueId}/sprint`, {
         method: 'PATCH',
         body: JSON.stringify({ sprintId }),
-      });
-      return { content: [{ type: 'text', text: JSON.stringify(issue, null, 2) }] };
-    },
-  );
-
-  server.tool(
-    'change_execution_status',
-    'Cambia el execution status de un issue (pending, execute, executing, executed, failed). Útil para controlar el pipeline Squad AI manualmente.',
-    {
-      projectId: z.string().describe('ID del proyecto'),
-      issueId: z.string().describe('ID del issue'),
-      executionStatus: z.enum(['pending', 'execute', 'executing', 'executed', 'failed']).describe('Nuevo execution status'),
-    },
-    async ({ projectId, issueId, executionStatus }) => {
-      const issue = await client.api(`/api/projects/${projectId}/issues/${issueId}/execution-status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ executionStatus }),
       });
       return { content: [{ type: 'text', text: JSON.stringify(issue, null, 2) }] };
     },

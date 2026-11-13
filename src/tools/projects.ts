@@ -25,12 +25,12 @@ export function registerProjectTools(server: McpServer, client: ApiClient) {
 
   server.tool(
     'create_project',
-    'Crea un nuevo proyecto. Tipos disponibles: scrum, kanban, squad_ai.',
+    'Crea un nuevo proyecto. Tipos disponibles: scrum, kanban.',
     {
       name: z.string().describe('Nombre del proyecto'),
       key: z.string().describe('Clave corta del proyecto (ej: "TT", "MOBILE")'),
       description: z.string().optional().describe('Descripción del proyecto'),
-      projectType: z.enum(['scrum', 'kanban', 'squad_ai']).describe('Tipo de proyecto'),
+      projectType: z.enum(['scrum', 'kanban']).describe('Tipo de proyecto'),
     },
     async ({ ...body }) => {
       const project = await client.api('/api/projects', {
@@ -48,9 +48,6 @@ export function registerProjectTools(server: McpServer, client: ApiClient) {
       projectId: z.string().describe('ID del proyecto'),
       name: z.string().optional().describe('Nuevo nombre'),
       description: z.string().optional().describe('Nueva descripción'),
-      techStack: z.string().optional().describe('Stack técnico (visible en prompts de agentes)'),
-      autoExecute: z.boolean().optional().describe('Auto-ejecutar tareas en pipeline Squad AI'),
-      specTemplateMd: z.string().optional().describe('SDD template (Markdown) usado para inicializar Issue.spec_md'),
     },
     async ({ projectId, ...body }) => {
       const project = await client.api(`/api/projects/${projectId}`, {
@@ -138,7 +135,6 @@ export function registerProjectTools(server: McpServer, client: ApiClient) {
       name: z.string().describe('Nombre del status (ej: "In Review")'),
       category: z.enum(['todo', 'in_progress', 'done']).describe('Categoría del status'),
       color: z.string().optional().describe('Color hex (ej: "#3B82F6")'),
-      agentInstructions: z.string().optional().describe('Instrucciones para agentes AI en esta fase'),
     },
     async ({ projectId, ...body }) => {
       const status = await client.api(`/api/projects/${projectId}/statuses`, {
@@ -157,7 +153,6 @@ export function registerProjectTools(server: McpServer, client: ApiClient) {
       statusId: z.string().describe('ID del status'),
       name: z.string().optional().describe('Nuevo nombre'),
       color: z.string().optional().describe('Nuevo color'),
-      agentInstructions: z.string().optional().describe('Nuevas instrucciones para agentes'),
     },
     async ({ projectId, statusId, ...body }) => {
       const status = await client.api(`/api/projects/${projectId}/statuses/${statusId}`, {

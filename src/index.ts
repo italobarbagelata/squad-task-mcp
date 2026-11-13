@@ -12,8 +12,6 @@ import { registerIssueTools } from './tools/issues.js';
 import { registerSprintTools } from './tools/sprints.js';
 import { registerUserTools } from './tools/users.js';
 import { registerCommentTools } from './tools/comments.js';
-import { registerWorkerTools } from './tools/worker.js';
-import { registerSquadTools } from './tools/squad.js';
 import { registerTeamTools } from './tools/teams.js';
 import { registerNotificationTools } from './tools/notifications.js';
 import { registerVotingTools } from './tools/voting.js';
@@ -28,8 +26,6 @@ import { registerVersionTools } from './tools/versions.js';
 import { registerWatcherTools } from './tools/watchers.js';
 import { registerWorkLogTools } from './tools/work-logs.js';
 import { registerBulkTools } from './tools/bulk.js';
-import { registerSquadPickupTool } from './tools/squad-pickup.js';
-import { registerProjectDocumentTools } from './tools/project-documents.js';
 import { registerProjectRepoTools } from './tools/project-repos.js';
 
 function createSquadServer(client: ApiClient): McpServer {
@@ -45,11 +41,7 @@ function createSquadServer(client: ApiClient): McpServer {
   registerUserTools(server, client);
   registerCommentTools(server, client);
 
-  // Squad AI
-  registerWorkerTools(server, client);
-  registerSquadTools(server, client);
-  registerSquadPickupTool(server, client);
-  registerProjectDocumentTools(server, client);
+  // Repos
   registerProjectRepoTools(server, client);
 
   // Collaboration
@@ -71,39 +63,6 @@ function createSquadServer(client: ApiClient): McpServer {
   registerWatcherTools(server, client);
   registerWorkLogTools(server, client);
   registerBulkTools(server, client);
-
-  // Slash commands. Surfaces /squad-pickup in Claude Code's `/` menu so
-  // devs do not have to remember the underlying tool name. The prompt
-  // produces a single user message that instructs the assistant to call
-  // the squad_pickup tool and write the returned markdown locally.
-  server.registerPrompt(
-    'squad-pickup',
-    {
-      title: 'Squad pickup',
-      description: 'Pick up a Squad AI ticket: fetches refinement + design context and writes .claude/SQUAD_CONTEXT.md in the current repo.',
-      argsSchema: {
-        issueKey: z.string().describe('Issue key, e.g. CHBCU-2'),
-        repo: z.string().optional().describe('Repo name when the project has multiple repos (e.g. "back-ms-core")'),
-      },
-    },
-    ({ issueKey, repo }) => ({
-      messages: [{
-        role: 'user',
-        content: {
-          type: 'text',
-          text: [
-            `Hacé pickup del ticket ${issueKey}${repo ? ` para el repo ${repo}` : ''}.`,
-            ``,
-            `Pasos:`,
-            `1. Llamá al tool squad_pickup con issueKey="${issueKey}"${repo ? ` y repo="${repo}"` : ''}.`,
-            `2. El tool devuelve el contenido del SQUAD_CONTEXT.md entre los marcadores <<<BEGIN SQUAD_CONTEXT.md>>> y <<<END SQUAD_CONTEXT.md>>>.`,
-            `3. Escribí ese contenido (sin los marcadores) en \`.claude/SQUAD_CONTEXT.md\` del repo donde está corriendo Claude Code (creá el directorio \`.claude/\` si no existe).`,
-            `4. Confirmá al usuario el path absoluto donde quedó guardado.`,
-          ].join('\n'),
-        },
-      }],
-    }),
-  );
 
   return server;
 }

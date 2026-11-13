@@ -10,7 +10,6 @@ export interface Issue {
   type: string;
   status: string;
   priority: string;
-  executionStatus: string;
   title: string;
   description?: string;
   phaseContext?: Record<string, unknown>;
@@ -42,8 +41,6 @@ export interface Project {
   leadId?: string;
   defaultAssigneeId?: string;
   projectType: string;
-  techStack?: string;
-  autoExecute?: boolean;
   issueCounter?: number;
   statuses: ProjectStatus[];
   issueTypes?: ProjectIssueType[];
@@ -83,45 +80,6 @@ export interface ProjectStatus {
   category: string;
   color?: string;
   order: number;
-  agentInstructions?: string;
-  systemRole?: string;
-  sddiMoment?: string;
-  sdlcStep?: string;
-  isDefaultForRole?: boolean;
-}
-
-export interface ProjectDocument {
-  id: string;
-  projectId: string;
-  title: string;
-  path: string;
-  content: string;
-  docType: string;
-  source: string;
-  taskTypes?: string[] | null;
-  version: number;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface SquadContext {
-  issue: Issue;
-  currentStatus: ProjectStatus | null;
-  projectName: string;
-  projectKey: string;
-  techStack?: string;
-  repos: ProjectRepo[];
-  affectedRepoIds: string[];
-  linkedPrs: IssuePR[];
-  specMd?: string;
-  documentRefs: ProjectDocumentRef[];
-}
-
-export interface ProjectDocumentRef {
-  id: string;
-  title: string;
-  docType: string;
-  version: number;
 }
 
 export interface ProjectIssueType {
@@ -160,17 +118,6 @@ export interface User {
   role: string;
   plan?: string;
   createdAt?: string;
-}
-
-export interface PhaseExecution {
-  id: string;
-  issueId: string;
-  phase: string;
-  status: string;
-  agentUser?: string;
-  summary?: string;
-  startedAt: string;
-  completedAt?: string;
 }
 
 export interface Team {
