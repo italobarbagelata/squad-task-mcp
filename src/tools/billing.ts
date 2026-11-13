@@ -15,7 +15,7 @@ export function registerBillingTools(server: McpServer, client: ApiClient) {
 
   server.tool(
     'change_plan',
-    'Cambia el plan del usuario (free o pro). Pro desbloquea proyectos ilimitados.',
+    'Cambia el plan del usuario. Cualquiera puede bajar a free; subir a pro solo lo puede hacer un admin global. Pro desbloquea proyectos ilimitados.',
     {
       plan: z.enum(['free', 'pro']).describe('Plan destino'),
     },
